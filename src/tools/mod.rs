@@ -357,6 +357,72 @@ pub struct ResetTimelineItemPropertiesRequest {
     pub property_type: Option<String>,
 }
 
+// ---- Keyframe Animation Request Types (Phase 4 Week 2) ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddKeyframeRequest {
+    #[schemars(description = "The ID of the timeline item to add keyframe to")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The name of the property to keyframe (e.g., 'Pan', 'ZoomX', 'Opacity')")]
+    pub property_name: String,
+    #[schemars(description = "Frame position for the keyframe")]
+    pub frame: i32,
+    #[schemars(description = "Value to set at the keyframe")]
+    pub value: f64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ModifyKeyframeRequest {
+    #[schemars(description = "The ID of the timeline item")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The name of the property with keyframe")]
+    pub property_name: String,
+    #[schemars(description = "Current frame position of the keyframe to modify")]
+    pub frame: i32,
+    #[schemars(description = "Optional new value for the keyframe")]
+    pub new_value: Option<f64>,
+    #[schemars(description = "Optional new frame position for the keyframe")]
+    pub new_frame: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteKeyframeRequest {
+    #[schemars(description = "The ID of the timeline item")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The name of the property with keyframe to delete")]
+    pub property_name: String,
+    #[schemars(description = "Frame position of the keyframe to delete")]
+    pub frame: i32,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetKeyframeInterpolationRequest {
+    #[schemars(description = "The ID of the timeline item")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The name of the property with keyframe")]
+    pub property_name: String,
+    #[schemars(description = "Frame position of the keyframe")]
+    pub frame: i32,
+    #[schemars(description = "Type of interpolation. Options: 'Linear', 'Bezier', 'Ease-In', 'Ease-Out', 'Hold'")]
+    pub interpolation_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EnableKeyframesRequest {
+    #[schemars(description = "The ID of the timeline item")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Keyframe mode to enable. Options: 'All', 'Color', 'Sizing'")]
+    #[serde(default = "default_keyframe_mode")]
+    pub keyframe_mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetKeyframesRequest {
+    #[schemars(description = "The ID of the timeline item")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional property name to get keyframes for (returns all if None)")]
+    pub property_name: Option<String>,
+}
+
 // Helper functions for color operations defaults
 fn default_node_type() -> String {
     "serial".to_string()
@@ -376,6 +442,10 @@ fn default_lut_format() -> String {
 
 fn default_lut_size() -> String {
     "33Point".to_string()
+}
+
+fn default_keyframe_mode() -> String {
+    "All".to_string()
 }
 
 // ============================================
@@ -831,6 +901,64 @@ pub async fn handle_tool_call(
             let response = bridge.call_api("reset_timeline_item_properties", serde_json::json!({
                 "timeline_item_id": req.timeline_item_id,
                 "property_type": req.property_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Keyframe Animation Request Types (Phase 4 Week 2) ----
+        "add_keyframe" => {
+            let req: AddKeyframeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_keyframe", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name,
+                "frame": req.frame,
+                "value": req.value
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "modify_keyframe" => {
+            let req: ModifyKeyframeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("modify_keyframe", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name,
+                "frame": req.frame,
+                "new_value": req.new_value,
+                "new_frame": req.new_frame
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_keyframe" => {
+            let req: DeleteKeyframeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_keyframe", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name,
+                "frame": req.frame
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_keyframe_interpolation" => {
+            let req: SetKeyframeInterpolationRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_keyframe_interpolation", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name,
+                "frame": req.frame,
+                "interpolation_type": req.interpolation_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "enable_keyframes" => {
+            let req: EnableKeyframesRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("enable_keyframes", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "keyframe_mode": req.keyframe_mode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_keyframes" => {
+            let req: GetKeyframesRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_keyframes", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name
             })).await?;
             Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }

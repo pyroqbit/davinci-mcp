@@ -868,6 +868,159 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // Keyframe Animation Tools (Phase 4 Week 2)
+            Tool::new(
+                "add_keyframe",
+                "Add a keyframe at the specified frame for a timeline item property",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to add keyframe to"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "The name of the property to keyframe (e.g., 'Pan', 'ZoomX', 'Opacity')"
+                        },
+                        "frame": {
+                            "type": "integer",
+                            "description": "Frame position for the keyframe",
+                            "minimum": 0
+                        },
+                        "value": {
+                            "type": "number",
+                            "description": "Value to set at the keyframe"
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_name", "frame", "value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "modify_keyframe",
+                "Modify an existing keyframe by changing its value or frame position",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "The name of the property with keyframe"
+                        },
+                        "frame": {
+                            "type": "integer",
+                            "description": "Current frame position of the keyframe to modify"
+                        },
+                        "new_value": {
+                            "type": "number",
+                            "description": "Optional new value for the keyframe"
+                        },
+                        "new_frame": {
+                            "type": "integer",
+                            "description": "Optional new frame position for the keyframe",
+                            "minimum": 0
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_name", "frame"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_keyframe",
+                "Delete a keyframe at the specified frame for a timeline item property",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "The name of the property with keyframe to delete"
+                        },
+                        "frame": {
+                            "type": "integer",
+                            "description": "Frame position of the keyframe to delete"
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_name", "frame"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_keyframe_interpolation",
+                "Set the interpolation type for a keyframe",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "The name of the property with keyframe"
+                        },
+                        "frame": {
+                            "type": "integer",
+                            "description": "Frame position of the keyframe"
+                        },
+                        "interpolation_type": {
+                            "type": "string",
+                            "description": "Type of interpolation",
+                            "enum": ["Linear", "Bezier", "Ease-In", "Ease-Out", "Hold"]
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_name", "frame", "interpolation_type"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "enable_keyframes",
+                "Enable keyframe mode for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item"
+                        },
+                        "keyframe_mode": {
+                            "type": "string",
+                            "description": "Keyframe mode to enable",
+                            "enum": ["All", "Color", "Sizing"],
+                            "default": "All"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_keyframes",
+                "Get keyframe information for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "Optional property name to get keyframes for (returns all if None)"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -932,7 +1085,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 36 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, and professional timeline item manipulation".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 42 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, and professional timeline item manipulation".to_string()),
         }
     }
 }

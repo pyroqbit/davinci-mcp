@@ -34,6 +34,60 @@ struct ResolveState {
     operation_count: u64,
     /// Timeline items state (Phase 4 Week 1)
     timeline_items: TimelineItemsState,
+    /// Keyframe animation state (Phase 4 Week 2)
+    keyframe_state: KeyframeState,
+}
+
+/// Keyframe animation state management (Phase 4 Week 2)
+#[derive(Debug, Default)]
+struct KeyframeState {
+    /// Keyframes by timeline item ID
+    timeline_item_keyframes: HashMap<String, TimelineItemKeyframes>,
+    /// Global keyframe counter
+    keyframe_counter: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TimelineItemKeyframes {
+    /// Timeline item ID
+    timeline_item_id: String,
+    /// Keyframes by property name
+    property_keyframes: HashMap<String, Vec<Keyframe>>,
+    /// Keyframe mode settings
+    keyframe_modes: KeyframeModes,
+}
+
+#[derive(Debug, Clone)]
+struct Keyframe {
+    /// Unique keyframe ID
+    id: u64,
+    /// Frame position
+    frame: i32,
+    /// Property value at this frame
+    value: f64,
+    /// Interpolation type to next keyframe
+    interpolation: InterpolationType,
+    /// Created timestamp
+    created_at: String,
+}
+
+#[derive(Debug, Clone)]
+enum InterpolationType {
+    Linear,
+    Bezier,
+    EaseIn,
+    EaseOut,
+    Hold,
+}
+
+#[derive(Debug, Clone, Default)]
+struct KeyframeModes {
+    /// All properties keyframe mode enabled
+    all_enabled: bool,
+    /// Color properties keyframe mode enabled
+    color_enabled: bool,
+    /// Sizing properties keyframe mode enabled
+    sizing_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -298,6 +352,14 @@ impl ResolveBridge {
             "set_timeline_item_audio" => self.set_timeline_item_audio(&mut state, args).await,
             "get_timeline_item_properties" => self.get_timeline_item_properties(&mut state, args).await,
             "reset_timeline_item_properties" => self.reset_timeline_item_properties(&mut state, args).await,
+
+            // Keyframe Animation Operations (Phase 4 Week 2)
+            "add_keyframe" => self.add_keyframe(&mut state, args).await,
+            "modify_keyframe" => self.modify_keyframe(&mut state, args).await,
+            "delete_keyframe" => self.delete_keyframe(&mut state, args).await,
+            "set_keyframe_interpolation" => self.set_keyframe_interpolation(&mut state, args).await,
+            "enable_keyframes" => self.enable_keyframes(&mut state, args).await,
+            "get_keyframes" => self.get_keyframes(&mut state, args).await,
 
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
@@ -1521,6 +1583,356 @@ impl ResolveBridge {
             "property_type": property_type,
             "operation_id": Uuid::new_v4().to_string()
         }))
+    }
+
+    // ==================== KEYFRAME ANIMATION OPERATIONS (Phase 4 Week 2) ====================
+
+    async fn add_keyframe(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "required string"))?;
+        let frame = args["frame"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", "required integer"))? as i32;
+        let value = args["value"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("value", "required number"))?;
+
+        // Validate property name
+        let valid_properties = vec![
+            "Pan", "Tilt", "ZoomX", "ZoomY", "Rotation", "AnchorPointX", "AnchorPointY", "Pitch", "Yaw",
+            "Left", "Right", "Top", "Bottom", "Opacity", "Speed", "Strength", "Volume", "AudioPan"
+        ];
+        if !valid_properties.contains(&property_name) {
+            return Err(ResolveError::invalid_parameter("property_name", 
+                "must be a valid timeline item property"));
+        }
+
+        // Validate frame position
+        if frame < 0 {
+            return Err(ResolveError::invalid_parameter("frame", "must be non-negative"));
+        }
+
+        // Generate keyframe ID
+        state.keyframe_state.keyframe_counter += 1;
+        let keyframe_id = state.keyframe_state.keyframe_counter;
+
+        // Get or create timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .entry(timeline_item_id.to_string())
+            .or_insert_with(|| TimelineItemKeyframes {
+                timeline_item_id: timeline_item_id.to_string(),
+                property_keyframes: HashMap::new(),
+                keyframe_modes: KeyframeModes::default(),
+            });
+
+        // Create new keyframe
+        let keyframe = Keyframe {
+            id: keyframe_id,
+            frame,
+            value,
+            interpolation: InterpolationType::Linear,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        // Add keyframe to property
+        let property_keyframes = timeline_item_keyframes.property_keyframes
+            .entry(property_name.to_string())
+            .or_insert_with(Vec::new);
+
+        // Insert keyframe in sorted order by frame
+        let insert_pos = property_keyframes.binary_search_by_key(&frame, |k| k.frame)
+            .unwrap_or_else(|pos| pos);
+        property_keyframes.insert(insert_pos, keyframe);
+
+        Ok(serde_json::json!({
+            "result": format!("Added keyframe for '{}' at frame {} with value {}", 
+                property_name, frame, value),
+            "timeline_item_id": timeline_item_id,
+            "property_name": property_name,
+            "frame": frame,
+            "value": value,
+            "keyframe_id": keyframe_id,
+            "total_keyframes": property_keyframes.len(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn modify_keyframe(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "required string"))?;
+        let frame = args["frame"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", "required integer"))? as i32;
+        let new_value = args["new_value"].as_f64();
+        let new_frame = args["new_frame"].as_i64().map(|f| f as i32);
+
+        // Get timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .get_mut(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", 
+                "no keyframes found for timeline item"))?;
+
+        // Get property keyframes
+        let property_keyframes = timeline_item_keyframes.property_keyframes
+            .get_mut(property_name)
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", 
+                "no keyframes found for property"))?;
+
+        // Find keyframe at specified frame
+        let keyframe_index = property_keyframes.iter()
+            .position(|k| k.frame == frame)
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", 
+                "no keyframe found at specified frame"))?;
+
+        let mut modifications = Vec::new();
+
+        // Modify value if provided
+        if let Some(value) = new_value {
+            property_keyframes[keyframe_index].value = value;
+            modifications.push(format!("value to {}", value));
+        }
+
+        // Modify frame position if provided
+        if let Some(new_frame_pos) = new_frame {
+            if new_frame_pos < 0 {
+                return Err(ResolveError::invalid_parameter("new_frame", "must be non-negative"));
+            }
+
+            // Remove keyframe from current position
+            let mut keyframe = property_keyframes.remove(keyframe_index);
+            keyframe.frame = new_frame_pos;
+
+            // Re-insert in sorted order
+            let insert_pos = property_keyframes.binary_search_by_key(&new_frame_pos, |k| k.frame)
+                .unwrap_or_else(|pos| pos);
+            property_keyframes.insert(insert_pos, keyframe);
+            
+            modifications.push(format!("frame to {}", new_frame_pos));
+        }
+
+        let result_msg = if modifications.is_empty() {
+            "No modifications made to keyframe".to_string()
+        } else {
+            format!("Modified keyframe: {}", modifications.join(", "))
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "property_name": property_name,
+            "original_frame": frame,
+            "new_value": new_value,
+            "new_frame": new_frame,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn delete_keyframe(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "required string"))?;
+        let frame = args["frame"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", "required integer"))? as i32;
+
+        // Get timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .get_mut(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", 
+                "no keyframes found for timeline item"))?;
+
+        // Get property keyframes
+        let property_keyframes = timeline_item_keyframes.property_keyframes
+            .get_mut(property_name)
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", 
+                "no keyframes found for property"))?;
+
+        // Find and remove keyframe at specified frame
+        let keyframe_index = property_keyframes.iter()
+            .position(|k| k.frame == frame)
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", 
+                "no keyframe found at specified frame"))?;
+
+        let deleted_keyframe = property_keyframes.remove(keyframe_index);
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted keyframe for '{}' at frame {}", property_name, frame),
+            "timeline_item_id": timeline_item_id,
+            "property_name": property_name,
+            "frame": frame,
+            "deleted_value": deleted_keyframe.value,
+            "remaining_keyframes": property_keyframes.len(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_keyframe_interpolation(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "required string"))?;
+        let frame = args["frame"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", "required integer"))? as i32;
+        let interpolation_type = args["interpolation_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("interpolation_type", "required string"))?;
+
+        // Validate interpolation type
+        let interpolation = match interpolation_type {
+            "Linear" => InterpolationType::Linear,
+            "Bezier" => InterpolationType::Bezier,
+            "Ease-In" => InterpolationType::EaseIn,
+            "Ease-Out" => InterpolationType::EaseOut,
+            "Hold" => InterpolationType::Hold,
+            _ => return Err(ResolveError::invalid_parameter("interpolation_type", 
+                "must be Linear, Bezier, Ease-In, Ease-Out, or Hold")),
+        };
+
+        // Get timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .get_mut(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", 
+                "no keyframes found for timeline item"))?;
+
+        // Get property keyframes
+        let property_keyframes = timeline_item_keyframes.property_keyframes
+            .get_mut(property_name)
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", 
+                "no keyframes found for property"))?;
+
+        // Find keyframe at specified frame
+        let keyframe = property_keyframes.iter_mut()
+            .find(|k| k.frame == frame)
+            .ok_or_else(|| ResolveError::invalid_parameter("frame", 
+                "no keyframe found at specified frame"))?;
+
+        keyframe.interpolation = interpolation;
+
+        Ok(serde_json::json!({
+            "result": format!("Set interpolation to '{}' for keyframe at frame {}", 
+                interpolation_type, frame),
+            "timeline_item_id": timeline_item_id,
+            "property_name": property_name,
+            "frame": frame,
+            "interpolation_type": interpolation_type,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn enable_keyframes(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let keyframe_mode = args["keyframe_mode"].as_str().unwrap_or("All");
+
+        // Validate keyframe mode
+        if !["All", "Color", "Sizing"].contains(&keyframe_mode) {
+            return Err(ResolveError::invalid_parameter("keyframe_mode", 
+                "must be All, Color, or Sizing"));
+        }
+
+        // Get or create timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .entry(timeline_item_id.to_string())
+            .or_insert_with(|| TimelineItemKeyframes {
+                timeline_item_id: timeline_item_id.to_string(),
+                property_keyframes: HashMap::new(),
+                keyframe_modes: KeyframeModes::default(),
+            });
+
+        // Set keyframe mode
+        match keyframe_mode {
+            "All" => timeline_item_keyframes.keyframe_modes.all_enabled = true,
+            "Color" => timeline_item_keyframes.keyframe_modes.color_enabled = true,
+            "Sizing" => timeline_item_keyframes.keyframe_modes.sizing_enabled = true,
+            _ => unreachable!(),
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Enabled '{}' keyframe mode for timeline item '{}'", 
+                keyframe_mode, timeline_item_id),
+            "timeline_item_id": timeline_item_id,
+            "keyframe_mode": keyframe_mode,
+            "modes": {
+                "all_enabled": timeline_item_keyframes.keyframe_modes.all_enabled,
+                "color_enabled": timeline_item_keyframes.keyframe_modes.color_enabled,
+                "sizing_enabled": timeline_item_keyframes.keyframe_modes.sizing_enabled
+            },
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn get_keyframes(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str();
+
+        // Get timeline item keyframes
+        let timeline_item_keyframes = state.keyframe_state.timeline_item_keyframes
+            .get(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", 
+                "no keyframes found for timeline item"))?;
+
+        let mut result = serde_json::json!({
+            "result": format!("Retrieved keyframes for timeline item '{}'", timeline_item_id),
+            "timeline_item_id": timeline_item_id,
+            "keyframe_modes": {
+                "all_enabled": timeline_item_keyframes.keyframe_modes.all_enabled,
+                "color_enabled": timeline_item_keyframes.keyframe_modes.color_enabled,
+                "sizing_enabled": timeline_item_keyframes.keyframe_modes.sizing_enabled
+            },
+            "operation_id": Uuid::new_v4().to_string()
+        });
+
+        // If specific property requested, return only that property's keyframes
+        if let Some(prop_name) = property_name {
+            if let Some(keyframes) = timeline_item_keyframes.property_keyframes.get(prop_name) {
+                let keyframe_data: Vec<serde_json::Value> = keyframes.iter().map(|kf| {
+                    serde_json::json!({
+                        "id": kf.id,
+                        "frame": kf.frame,
+                        "value": kf.value,
+                        "interpolation": format!("{:?}", kf.interpolation),
+                        "created_at": kf.created_at
+                    })
+                }).collect();
+
+                result["property_name"] = serde_json::Value::String(prop_name.to_string());
+                result["keyframes"] = serde_json::Value::Array(keyframe_data);
+                result["total_keyframes"] = serde_json::Value::Number(
+                    serde_json::Number::from(keyframes.len())
+                );
+            } else {
+                result["property_name"] = serde_json::Value::String(prop_name.to_string());
+                result["keyframes"] = serde_json::Value::Array(vec![]);
+                result["total_keyframes"] = serde_json::Value::Number(serde_json::Number::from(0));
+            }
+        } else {
+            // Return all properties and their keyframes
+            let mut all_properties = serde_json::Map::new();
+            let mut total_count = 0;
+
+            for (prop_name, keyframes) in &timeline_item_keyframes.property_keyframes {
+                let keyframe_data: Vec<serde_json::Value> = keyframes.iter().map(|kf| {
+                    serde_json::json!({
+                        "id": kf.id,
+                        "frame": kf.frame,
+                        "value": kf.value,
+                        "interpolation": format!("{:?}", kf.interpolation),
+                        "created_at": kf.created_at
+                    })
+                }).collect();
+
+                all_properties.insert(prop_name.clone(), serde_json::Value::Array(keyframe_data));
+                total_count += keyframes.len();
+            }
+
+            result["properties"] = serde_json::Value::Object(all_properties);
+            result["total_keyframes"] = serde_json::Value::Number(
+                serde_json::Number::from(total_count)
+            );
+        }
+
+        Ok(result)
     }
 }
 

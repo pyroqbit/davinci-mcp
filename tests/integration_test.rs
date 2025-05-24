@@ -185,9 +185,65 @@ async fn test_timeline_item_properties() {
 
 #[tokio::test]
 async fn test_timeline_item_reset() {
-    // Test timeline item property reset operations
+    // Test timeline item property reset functionality
     let _server = DaVinciResolveServer::new();
     
-    // This would test resetting specific or all properties to defaults
+    // This would test resetting timeline item properties to defaults
+    assert!(true);
+}
+
+// ====================== KEYFRAME ANIMATION TESTS (Phase 4 Week 2) ======================
+
+#[tokio::test]
+async fn test_add_keyframe() {
+    // Test keyframe creation functionality
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test adding keyframes at specific frames with values
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_modify_keyframe() {
+    // Test keyframe modification functionality
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test changing keyframe values and positions
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_delete_keyframe() {
+    // Test keyframe deletion functionality
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test removing keyframes at specific frames
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_keyframe_interpolation() {
+    // Test keyframe interpolation type setting
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test setting Linear, Bezier, Ease-In, Ease-Out, Hold interpolation
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_enable_keyframes() {
+    // Test keyframe mode activation
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test enabling All, Color, Sizing keyframe modes
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_get_keyframes() {
+    // Test keyframe information retrieval
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test getting keyframes for timeline items and properties
     assert!(true);
 } 

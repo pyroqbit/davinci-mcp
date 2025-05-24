@@ -121,6 +121,14 @@ impl ResolveBridge {
             "unlink_proxy_media" => self.unlink_proxy_media(&mut state, args).await,
             "replace_clip" => self.replace_clip(&mut state, args).await,
 
+            // Timeline Enhancement operations (Phase 3 Week 2)
+            "delete_timeline" => self.delete_timeline(&mut state, args).await,
+            "set_current_timeline" => self.set_current_timeline(&mut state, args).await,
+            "create_empty_timeline" => self.create_empty_timeline(&mut state, args).await,
+            "add_clip_to_timeline" => self.add_clip_to_timeline(&mut state, args).await,
+            "list_timelines_tool" => self.list_timelines_tool(&mut state, args).await,
+            "get_timeline_tracks" => self.get_timeline_tracks(&mut state, args).await,
+
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
     }
@@ -386,6 +394,139 @@ impl ResolveBridge {
         Ok(serde_json::json!({
             "result": format!("Replaced clip '{}' with '{}'", clip_name, replacement_path),
             "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn delete_timeline(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let name = args["name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("name", "required string"))?;
+        
+        if state.timelines.remove(name).is_none() {
+            return Err(ResolveError::TimelineNotFound { name: name.to_string() });
+        }
+        
+        // Reset current timeline if it was the deleted one
+        if state.current_timeline.as_ref() == Some(&name.to_string()) {
+            state.current_timeline = None;
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted timeline '{}'", name),
+            "remaining_timelines": state.timelines.len(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_current_timeline(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let name = args["name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("name", "required string"))?;
+        
+        if !state.timelines.contains_key(name) {
+            return Err(ResolveError::TimelineNotFound { name: name.to_string() });
+        }
+        
+        state.current_timeline = Some(name.to_string());
+
+        Ok(serde_json::json!({
+            "result": format!("Set current timeline to '{}'", name),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn create_empty_timeline(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let name = args["name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("name", "required string"))?;
+        
+        if state.current_project.is_none() {
+            return Err(ResolveError::NotRunning);
+        }
+
+        let timeline = Timeline {
+            name: name.to_string(),
+            frame_rate: args["frame_rate"].as_str().map(|s| s.to_string()),
+            resolution_width: args["resolution_width"].as_i64().map(|i| i as i32),
+            resolution_height: args["resolution_height"].as_i64().map(|i| i as i32),
+            markers: vec![],
+        };
+
+        state.timelines.insert(name.to_string(), timeline);
+        state.current_timeline = Some(name.to_string());
+
+        Ok(serde_json::json!({
+            "result": format!("Created empty timeline '{}'", name),
+            "timeline_id": Uuid::new_v4().to_string(),
+            "frame_rate": args["frame_rate"],
+            "resolution": format!("{}x{}", 
+                args["resolution_width"].as_i64().unwrap_or(1920),
+                args["resolution_height"].as_i64().unwrap_or(1080)
+            ),
+            "video_tracks": args["video_tracks"].as_i64().unwrap_or(1),
+            "audio_tracks": args["audio_tracks"].as_i64().unwrap_or(2)
+        }))
+    }
+
+    async fn add_clip_to_timeline(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "required string"))?;
+        
+        let timeline_name = if let Some(name) = args["timeline_name"].as_str() {
+            name.to_string()
+        } else {
+            state.current_timeline.clone()
+                .ok_or_else(|| ResolveError::TimelineNotFound { name: "current".to_string() })?
+        };
+        
+        if !state.timelines.contains_key(&timeline_name) {
+            return Err(ResolveError::TimelineNotFound { name: timeline_name });
+        }
+        
+        if !state.media_pool.clips.contains_key(clip_name) {
+            return Err(ResolveError::MediaNotFound { name: clip_name.to_string() });
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Added clip '{}' to timeline '{}'", clip_name, timeline_name),
+            "timeline_item_id": Uuid::new_v4().to_string(),
+            "track": "Video 1"
+        }))
+    }
+
+    async fn list_timelines_tool(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        let timeline_names: Vec<&String> = state.timelines.keys().collect();
+        let timeline_list = if timeline_names.is_empty() {
+            "No timelines available".to_string()
+        } else {
+            timeline_names.iter().map(|&name| name.clone()).collect::<Vec<String>>().join(", ")
+        };
+
+        Ok(serde_json::json!({
+            "result": format!("Timelines: {}", timeline_list),
+            "count": timeline_names.len(),
+            "current_timeline": state.current_timeline
+        }))
+    }
+
+    async fn get_timeline_tracks(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = if let Some(name) = args["timeline_name"].as_str() {
+            name.to_string()
+        } else {
+            state.current_timeline.clone()
+                .ok_or_else(|| ResolveError::TimelineNotFound { name: "current".to_string() })?
+        };
+        
+        if !state.timelines.contains_key(&timeline_name) {
+            return Err(ResolveError::TimelineNotFound { name: timeline_name });
+        }
+
+        // Simulate track information
+        let video_tracks = vec!["Video 1", "Video 2", "Video 3"];
+        let audio_tracks = vec!["Audio 1", "Audio 2", "Audio 3", "Audio 4"];
+
+        Ok(serde_json::json!({
+            "result": format!("Timeline '{}' tracks retrieved", timeline_name),
+            "video_tracks": video_tracks,
+            "audio_tracks": audio_tracks,
+            "total_tracks": video_tracks.len() + audio_tracks.len()
         }))
     }
 }

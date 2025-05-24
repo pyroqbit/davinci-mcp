@@ -143,6 +143,51 @@ pub struct ReplaceClipRequest {
     pub replacement_path: String,
 }
 
+// Timeline Enhancement Tools (Phase 3 Week 2)
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteTimelineRequest {
+    #[schemars(description = "Name of the timeline to delete")]
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetCurrentTimelineRequest {
+    #[schemars(description = "Name of the timeline to set as current")]
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateEmptyTimelineRequest {
+    #[schemars(description = "Name for the new timeline")]
+    pub name: String,
+    #[schemars(description = "Optional frame rate (e.g. '24', '29.97', '30', '60')")]
+    pub frame_rate: Option<String>,
+    #[schemars(description = "Optional width in pixels (e.g. 1920)")]
+    pub resolution_width: Option<i32>,
+    #[schemars(description = "Optional height in pixels (e.g. 1080)")]
+    pub resolution_height: Option<i32>,
+    #[schemars(description = "Optional start timecode (e.g. '01:00:00:00')")]
+    pub start_timecode: Option<String>,
+    #[schemars(description = "Optional number of video tracks (Default is project setting)")]
+    pub video_tracks: Option<i32>,
+    #[schemars(description = "Optional number of audio tracks (Default is project setting)")]
+    pub audio_tracks: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddClipToTimelineRequest {
+    #[schemars(description = "Name of the clip in the media pool")]
+    pub clip_name: String,
+    #[schemars(description = "Optional timeline to target (uses current if not specified)")]
+    pub timeline_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineTracksRequest {
+    #[schemars(description = "Optional timeline name (uses current if not specified)")]
+    pub timeline_name: Option<String>,
+}
+
 // ============================================
 // TOOL IMPLEMENTATIONS
 // ============================================
@@ -402,6 +447,54 @@ pub async fn handle_tool_call(
         "replace_clip" => {
             let req: ReplaceClipRequest = serde_json::from_value(args)?;
             media_tools.replace_clip(req).await
+        }
+
+        // Timeline Enhancement Tools (Phase 3 Week 2)
+        "delete_timeline" => {
+            let req: DeleteTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_timeline", serde_json::json!({
+                "name": req.name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_current_timeline" => {
+            let req: SetCurrentTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_current_timeline", serde_json::json!({
+                "name": req.name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "create_empty_timeline" => {
+            let req: CreateEmptyTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_empty_timeline", serde_json::json!({
+                "name": req.name,
+                "frame_rate": req.frame_rate,
+                "resolution_width": req.resolution_width,
+                "resolution_height": req.resolution_height,
+                "start_timecode": req.start_timecode,
+                "video_tracks": req.video_tracks,
+                "audio_tracks": req.audio_tracks
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "add_clip_to_timeline" => {
+            let req: AddClipToTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_clip_to_timeline", serde_json::json!({
+                "clip_name": req.clip_name,
+                "timeline_name": req.timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_tracks" => {
+            let req: GetTimelineTracksRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_tracks", serde_json::json!({
+                "timeline_name": req.timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "list_timelines_tool" => {
+            let response = bridge.call_api("list_timelines_tool", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }
 
         _ => Err(crate::error::ResolveError::ToolNotFound {

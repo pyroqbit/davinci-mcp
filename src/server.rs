@@ -362,6 +362,115 @@ impl DaVinciResolveServer {
                     "required": ["clip_name", "replacement_path"]
                 }).as_object().unwrap().clone()),
             ),
+            
+            // Timeline Enhancement Tools (Phase 3 Week 2)
+            Tool::new(
+                "delete_timeline",
+                "Delete a timeline by name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name of the timeline to delete"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_current_timeline",
+                "Switch to a timeline by name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name of the timeline to set as current"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "create_empty_timeline",
+                "Create a new timeline with custom settings",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name for the new timeline"
+                        },
+                        "frame_rate": {
+                            "type": "string",
+                            "description": "Optional frame rate (e.g. \"24\", \"29.97\", \"30\", \"60\")"
+                        },
+                        "resolution_width": {
+                            "type": "integer",
+                            "description": "Optional width in pixels (e.g. 1920)"
+                        },
+                        "resolution_height": {
+                            "type": "integer",
+                            "description": "Optional height in pixels (e.g. 1080)"
+                        },
+                        "start_timecode": {
+                            "type": "string",
+                            "description": "Optional start timecode (e.g. \"01:00:00:00\")"
+                        },
+                        "video_tracks": {
+                            "type": "integer",
+                            "description": "Optional number of video tracks (Default is project setting)"
+                        },
+                        "audio_tracks": {
+                            "type": "integer",
+                            "description": "Optional number of audio tracks (Default is project setting)"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_clip_to_timeline",
+                "Add a media pool clip to the timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip in the media pool"
+                        },
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Optional timeline to target (uses current if not specified)"
+                        }
+                    },
+                    "required": ["clip_name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "list_timelines_tool",
+                "List all timelines in the current project as a tool",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_tracks",
+                "Retrieve track information for a timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Optional timeline name (uses current if not specified)"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -426,7 +535,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Rust) - Automate DaVinci Resolve workflows with 14 tools including project management, timeline operations, and advanced media pool management".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 20 tools including project management, timeline operations, media pool management, and timeline enhancement features".to_string()),
         }
     }
 }

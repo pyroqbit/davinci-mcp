@@ -1,314 +1,438 @@
 use std::sync::Arc;
-use rmcp::{ServerCapabilities, Tool, Error as McpError, McpService};
-use serde_json::{json, Value};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use serde_json::{json, Value};
 
-use crate::bridge::ResolveBridge;
-use crate::config::Config;
-use crate::error::{ResolveError, ResolveResult};
-use crate::tools::*;
+use rmcp::{
+    model::{
+        CallToolResult, ClientNotification, ClientRequest, Content, Implementation,
+        InitializeResult, ListToolsResult, ProtocolVersion, ServerCapabilities,
+        Tool, CallToolRequestParam, ServerResult
+    },
+    service::{RequestContext, Service},
+    Error as McpError, RoleServer,
+};
+
+use crate::{
+    bridge::ResolveBridge,
+    config::Config,
+    error::ResolveError,
+    tools::{handle_tool_call},
+};
 
 /// Main DaVinci Resolve MCP Server
+#[derive(Debug)]
 pub struct DaVinciResolveServer {
     /// Configuration
     config: Arc<Config>,
     /// Python bridge to DaVinci Resolve
     bridge: Arc<ResolveBridge>,
-    /// Project management tools
-    project_tools: Arc<ProjectTools>,
-    /// Timeline management tools
-    timeline_tools: Arc<TimelineTools>,
-    /// Media pool tools
-    media_tools: Arc<MediaTools>,
-    /// Color grading tools
-    color_tools: Arc<ColorTools>,
-    /// Rendering tools
-    render_tools: Arc<RenderTools>,
-    /// Export tools
-    export_tools: Arc<ExportTools>,
     /// Server initialized flag
     initialized: Arc<RwLock<bool>>,
 }
 
 impl DaVinciResolveServer {
-    /// Create a new DaVinci Resolve MCP server
-    pub fn new(config: Config) -> Self {
+    /// Create a new server instance with default configuration
+    pub fn new() -> Self {
+        let config = Config::default();
+        Self::with_config(config)
+    }
+
+    /// Create a new server instance with custom configuration
+    pub fn with_config(config: Config) -> Self {
         let bridge = Arc::new(ResolveBridge::new());
-        
         Self {
             config: Arc::new(config),
-            project_tools: Arc::new(ProjectTools::new(bridge.clone())),
-            timeline_tools: Arc::new(TimelineTools::new(bridge.clone())),
-            media_tools: Arc::new(MediaTools::new(bridge.clone())),
-            color_tools: Arc::new(ColorTools::new(bridge.clone())),
-            render_tools: Arc::new(RenderTools::new(bridge.clone())),
-            export_tools: Arc::new(ExportTools::new(bridge.clone())),
             bridge,
             initialized: Arc::new(RwLock::new(false)),
         }
     }
 
-    /// Initialize the server and Python bridge
-    #[instrument(skip(self))]
-    pub async fn initialize(&self) -> ResolveResult<()> {
+    /// Initialize the server and DaVinci Resolve connection
+    pub async fn initialize(&self) -> Result<(), ResolveError> {
         let mut initialized = self.initialized.write().await;
         if *initialized {
             return Ok(());
         }
 
-        info!("Initializing DaVinci Resolve MCP Server");
-        
         // Initialize Python bridge
         self.bridge.initialize().await?;
-        
-        // Check if DaVinci Resolve is running
-        if !self.bridge.is_resolve_running().await? {
-            return Err(ResolveError::NotRunning);
-        }
-        
+
         *initialized = true;
-        info!("DaVinci Resolve MCP Server initialized successfully");
         Ok(())
     }
 
-    /// Get server capabilities
-    pub fn get_capabilities(&self) -> ServerCapabilities {
-        ServerCapabilities {
-            tools: Some(mcp::ToolsCapability {}),
-            ..Default::default()
-        }
+    /// Handle MCP tool calls by routing to the centralized handler
+    pub async fn handle_tool_call(&self, name: &str, arguments: Option<serde_json::Map<String, Value>>) -> Result<String, ResolveError> {
+        // Convert arguments to Value for the handler
+        let args = match arguments {
+            Some(args_map) => Value::Object(args_map),
+            None => json!({}),
+        };
+
+        // Use the centralized tool handler
+        handle_tool_call(name, args, self.bridge.clone()).await
     }
 
-    /// Get all available tools
-    #[instrument(skip(self))]
-    pub async fn get_tools(&self) -> Vec<Tool> {
+    /// Get list of all available tools with comprehensive schemas
+    fn get_tools(&self) -> Vec<Tool> {
         vec![
-            // Project management tools
-            Tool {
-                name: "create_project".to_string(),
-                description: Some("Create a new project with the given name".to_string()),
-                input_schema: self.get_schema_for_type::<CreateProjectRequest>(),
-            },
-            Tool {
-                name: "open_project".to_string(),
-                description: Some("Open an existing project by name".to_string()),
-                input_schema: self.get_schema_for_type::<OpenProjectRequest>(),
-            },
-            Tool {
-                name: "save_project".to_string(),
-                description: Some("Save the current project".to_string()),
-                input_schema: json!({"type": "object", "properties": {}}),
-            },
-            Tool {
-                name: "close_project".to_string(),
-                description: Some("Close the current project".to_string()),
-                input_schema: json!({"type": "object", "properties": {}}),
-            },
-            Tool {
-                name: "set_project_setting".to_string(),
-                description: Some("Set a project setting to the specified value".to_string()),
-                input_schema: self.get_schema_for_type::<SetProjectSettingRequest>(),
-            },
-            Tool {
-                name: "switch_page".to_string(),
-                description: Some("Switch to a specific page in DaVinci Resolve".to_string()),
-                input_schema: json!({
+            // ==================== PHASE 1 & 2 TOOLS ====================
+            
+            // Project Management
+            Tool::new(
+                "create_project",
+                "Create a new DaVinci Resolve project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name for the new project"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "open_project",
+                "Open an existing DaVinci Resolve project by name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the project to open"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "switch_page",
+                "Switch to a specific page in DaVinci Resolve",
+                Arc::new(json!({
                     "type": "object",
                     "properties": {
                         "page": {
                             "type": "string",
-                            "enum": ["media", "cut", "edit", "fusion", "color", "fairlight", "deliver"],
-                            "description": "The page to switch to"
+                            "description": "The page to switch to",
+                            "enum": ["media", "cut", "edit", "fusion", "color", "fairlight", "deliver"]
                         }
                     },
                     "required": ["page"]
-                }),
-            },
-            
-            // Timeline tools
-            Tool {
-                name: "create_timeline".to_string(),
-                description: Some("Create a new timeline with the given name".to_string()),
-                input_schema: self.get_schema_for_type::<CreateTimelineRequest>(),
-            },
-            Tool {
-                name: "create_empty_timeline".to_string(),
-                description: Some("Create a new timeline with custom settings".to_string()),
-                input_schema: self.get_schema_for_type::<CreateTimelineRequest>(),
-            },
-            Tool {
-                name: "delete_timeline".to_string(),
-                description: Some("Delete a timeline by name".to_string()),
-                input_schema: self.get_schema_for_type::<DeleteTimelineRequest>(),
-            },
-            Tool {
-                name: "set_current_timeline".to_string(),
-                description: Some("Switch to a timeline by name".to_string()),
-                input_schema: self.get_schema_for_type::<SetCurrentTimelineRequest>(),
-            },
-            Tool {
-                name: "add_marker".to_string(),
-                description: Some("Add a marker at the specified frame in the current timeline".to_string()),
-                input_schema: self.get_schema_for_type::<AddMarkerRequest>(),
-            },
-            Tool {
-                name: "list_timelines".to_string(),
-                description: Some("List all timelines in the current project".to_string()),
-                input_schema: json!({"type": "object", "properties": {}}),
-            },
-            
-            // Media pool tools
-            Tool {
-                name: "import_media".to_string(),
-                description: Some("Import media file into the current project's media pool".to_string()),
-                input_schema: self.get_schema_for_type::<ImportMediaRequest>(),
-            },
-            Tool {
-                name: "create_bin".to_string(),
-                description: Some("Create a new bin/folder in the media pool".to_string()),
-                input_schema: self.get_schema_for_type::<CreateBinRequest>(),
-            },
+                }).as_object().unwrap().clone()),
+            ),
+
+            // Timeline Operations
+            Tool::new(
+                "create_timeline",
+                "Create a new timeline with optional custom settings",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name for the new timeline"
+                        },
+                        "frame_rate": {
+                            "type": "string",
+                            "description": "Optional frame rate (e.g. '24', '29.97', '30', '60')"
+                        },
+                        "resolution_width": {
+                            "type": "integer",
+                            "description": "Optional width in pixels (e.g. 1920)"
+                        },
+                        "resolution_height": {
+                            "type": "integer",
+                            "description": "Optional height in pixels (e.g. 1080)"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_marker",
+                "Add a colored marker to the timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "frame": {
+                            "type": "integer",
+                            "description": "Frame number to add the marker at (defaults to current position if not specified)"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Marker color",
+                            "enum": ["Blue", "Cyan", "Green", "Yellow", "Red", "Pink", "Purple", "Fuchsia", "Rose", "Lavender", "Sky", "Mint", "Lemon", "Sand", "Cocoa", "Cream"],
+                            "default": "Blue"
+                        },
+                        "note": {
+                            "type": "string",
+                            "description": "Text note to add to the marker",
+                            "default": ""
+                        }
+                    },
+                    "required": ["color", "note"]
+                }).as_object().unwrap().clone()),
+            ),
+
+            // Basic Media Operations  
+            Tool::new(
+                "import_media",
+                "Import media file into the current project's media pool",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the media file to import"
+                        }
+                    },
+                    "required": ["file_path"]
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== PHASE 3 WEEK 1: MEDIA OPERATIONS ====================
+
+            Tool::new(
+                "create_bin",
+                "Create a new bin/folder in the media pool",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name for the new bin"
+                        }
+                    },
+                    "required": ["name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "auto_sync_audio",
+                "Sync audio between clips with customizable settings",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of clip names to sync"
+                        },
+                        "sync_method": {
+                            "type": "string",
+                            "description": "Method to use for synchronization - 'waveform' or 'timecode'",
+                            "enum": ["waveform", "timecode"],
+                            "default": "waveform"
+                        },
+                        "append_mode": {
+                            "type": "boolean",
+                            "description": "Whether to append the audio or replace it",
+                            "default": false
+                        },
+                        "target_bin": {
+                            "type": "string",
+                            "description": "Optional bin to move synchronized clips to"
+                        }
+                    },
+                    "required": ["clip_names"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "unlink_clips",
+                "Unlink specified clips, disconnecting them from their media files",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of clip names to unlink"
+                        }
+                    },
+                    "required": ["clip_names"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "relink_clips",
+                "Relink specified clips to their media files",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of clip names to relink"
+                        },
+                        "media_paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional list of specific media file paths to use for relinking"
+                        },
+                        "folder_path": {
+                            "type": "string",
+                            "description": "Optional folder path to search for media files"
+                        },
+                        "recursive": {
+                            "type": "boolean",
+                            "description": "Whether to search the folder path recursively",
+                            "default": false
+                        }
+                    },
+                    "required": ["clip_names"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "create_sub_clip",
+                "Create a subclip from the specified clip using in and out points",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the source clip"
+                        },
+                        "start_frame": {
+                            "type": "integer",
+                            "description": "Start frame (in point)"
+                        },
+                        "end_frame": {
+                            "type": "integer",
+                            "description": "End frame (out point)"
+                        },
+                        "sub_clip_name": {
+                            "type": "string",
+                            "description": "Optional name for the subclip (defaults to original name with '_subclip')"
+                        },
+                        "bin_name": {
+                            "type": "string",
+                            "description": "Optional bin to place the subclip in"
+                        }
+                    },
+                    "required": ["clip_name", "start_frame", "end_frame"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "link_proxy_media",
+                "Link a proxy media file to a clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to link proxy to"
+                        },
+                        "proxy_file_path": {
+                            "type": "string",
+                            "description": "Path to the proxy media file"
+                        }
+                    },
+                    "required": ["clip_name", "proxy_file_path"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "unlink_proxy_media",
+                "Unlink proxy media from a clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to unlink proxy from"
+                        }
+                    },
+                    "required": ["clip_name"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "replace_clip",
+                "Replace a clip with another media file",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to be replaced"
+                        },
+                        "replacement_path": {
+                            "type": "string",
+                            "description": "Path to the replacement media file"
+                        }
+                    },
+                    "required": ["clip_name", "replacement_path"]
+                }).as_object().unwrap().clone()),
+            ),
         ]
-    }
-
-    /// Execute a tool call
-    #[instrument(skip(self, arguments))]
-    pub async fn call_tool(&self, name: &str, arguments: Value) -> Result<Value, McpError> {
-        // Ensure server is initialized
-        if let Err(e) = self.initialize().await {
-            return Err(McpError::InternalError(format!("Server initialization failed: {}", e)));
-        }
-
-        debug!("Executing tool: {} with arguments: {}", name, arguments);
-
-        let result = match name {
-            // Project management
-            "create_project" => {
-                let req: CreateProjectRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.project_tools.create_project(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "open_project" => {
-                let req: OpenProjectRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.project_tools.open_project(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "save_project" => {
-                self.project_tools.save_project().await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "close_project" => {
-                self.project_tools.close_project().await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "set_project_setting" => {
-                let req: SetProjectSettingRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.project_tools.set_project_setting(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "switch_page" => {
-                let page = arguments.get("page")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| McpError::InvalidParams("Missing or invalid 'page' parameter".to_string()))?;
-                self.project_tools.switch_page(page).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            
-            // Timeline management
-            "create_timeline" => {
-                let req: CreateTimelineRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.timeline_tools.create_timeline(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "create_empty_timeline" => {
-                let req: CreateTimelineRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.timeline_tools.create_empty_timeline(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "delete_timeline" => {
-                let req: DeleteTimelineRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.timeline_tools.delete_timeline(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "set_current_timeline" => {
-                let req: SetCurrentTimelineRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.timeline_tools.set_current_timeline(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "add_marker" => {
-                let req: AddMarkerRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.timeline_tools.add_marker(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "list_timelines" => {
-                self.timeline_tools.list_timelines().await
-                    .map(|timelines| json!({"content": [{"type": "text", "text": format!("Timelines: {}", timelines.join(", "))}]}))
-            }
-            
-            // Media pool management
-            "import_media" => {
-                let req: ImportMediaRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.media_tools.import_media(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            "create_bin" => {
-                let req: CreateBinRequest = serde_json::from_value(arguments)
-                    .map_err(|e| McpError::InvalidParams(e.to_string()))?;
-                self.media_tools.create_bin(req).await
-                    .map(|msg| json!({"content": [{"type": "text", "text": msg}]}))
-            }
-            
-            _ => Err(ResolveError::not_supported(format!("Tool '{}' not implemented", name))),
-        };
-
-        match result {
-            Ok(response) => {
-                debug!("Tool execution successful: {}", name);
-                Ok(response)
-            }
-            Err(e) => {
-                error!("Tool execution failed: {} - {}", name, e);
-                Err(McpError::InternalError(e.to_string()))
-            }
-        }
-    }
-
-    /// Get JSON schema for a type
-    fn get_schema_for_type<T>(&self) -> Value
-    where
-        T: schemars::JsonSchema,
-    {
-        let schema = schemars::schema_for!(T);
-        serde_json::to_value(schema).unwrap_or_else(|_| json!({}))
     }
 }
 
-impl McpService for DaVinciResolveServer {
-    async fn list_tools(&self) -> Result<Vec<Tool>, McpError> {
-        Ok(self.get_tools().await)
+impl Service<RoleServer> for DaVinciResolveServer {
+    async fn handle_request(
+        &self,
+        request: ClientRequest,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ServerResult, McpError> {
+        match request {
+            ClientRequest::InitializeRequest(_) => {
+                // Handle initialization
+                let info = self.get_info();
+                Ok(ServerResult::InitializeResult(info))
+            }
+            ClientRequest::ListToolsRequest(_) => {
+                let tools = self.get_tools();
+                Ok(ServerResult::ListToolsResult(ListToolsResult { 
+                    tools,
+                    next_cursor: None
+                }))
+            }
+            ClientRequest::CallToolRequest(call_tool_request) => {
+                // Extract the actual parameters from the request
+                let CallToolRequestParam { name, arguments } = call_tool_request.params;
+                
+                match self.handle_tool_call(&name, arguments).await {
+                    Ok(content) => Ok(ServerResult::CallToolResult(CallToolResult {
+                        content: vec![Content::text(content)],
+                        is_error: Some(false),
+                    })),
+                    Err(e) => Ok(ServerResult::CallToolResult(CallToolResult {
+                        content: vec![Content::text(format!("Error: {}", e))],
+                        is_error: Some(true),
+                    })),
+                }
+            }
+            _ => {
+                // Create a proper method not found error
+                Err(McpError::method_not_found::<rmcp::model::JsonRpcVersion2_0>())
+            }
+        }
     }
 
-    async fn call_tool(&self, name: String, arguments: Option<Value>) -> Result<Value, McpError> {
-        let args = arguments.unwrap_or_else(|| json!({}));
-        self.call_tool(&name, args).await
+    async fn handle_notification(
+        &self,
+        _notification: ClientNotification,
+    ) -> Result<(), McpError> {
+        // Handle notifications if needed
+        Ok(())
     }
 
-    async fn get_server_info(&self) -> Result<mcp::ServerInfo, McpError> {
-        Ok(mcp::ServerInfo {
-            name: self.config.server.name.clone(),
-            version: self.config.server.version.clone(),
-            instructions: self.config.server.instructions.clone(),
-            capabilities: Some(self.get_capabilities()),
-        })
+    fn get_info(&self) -> InitializeResult {
+        InitializeResult {
+            protocol_version: ProtocolVersion::LATEST,
+            capabilities: ServerCapabilities {
+                tools: Some(Default::default()),
+                ..Default::default()
+            },
+            server_info: Implementation {
+                name: "davinci-resolve-mcp".into(),
+                version: "2.0.0".into(),
+            },
+            instructions: Some("DaVinci Resolve MCP Server (Rust) - Automate DaVinci Resolve workflows with 14 tools including project management, timeline operations, and advanced media pool management".to_string()),
+        }
+    }
+}
+
+impl Default for DaVinciResolveServer {
+    fn default() -> Self {
+        Self::new()
     }
 } 

@@ -18,14 +18,14 @@ pub enum ResolveError {
     #[error("Bin not found: {name}")]
     BinNotFound { name: String },
     
+    #[error("Tool not found: {name}")]
+    ToolNotFound { name: String },
+    
     #[error("Invalid timeline item ID: {id}")]
     InvalidTimelineItemId { id: String },
     
     #[error("Invalid node index: {index}")]
     InvalidNodeIndex { index: i32 },
-    
-    #[error("Python bridge error: {0}")]
-    PythonBridge(#[from] pyo3::PyErr),
     
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
@@ -88,24 +88,23 @@ impl ResolveError {
 pub type ResolveResult<T> = Result<T, ResolveError>;
 
 /// Convert ResolveError to MCP JSON-RPC error
-impl From<ResolveError> for mcp::JsonRpcError {
+impl From<ResolveError> for rmcp::Error {
     fn from(err: ResolveError) -> Self {
-        let (code, message) = match err {
-            ResolveError::NotRunning => (-32001, err.to_string()),
-            ResolveError::ProjectNotFound { .. } => (-32002, err.to_string()),
-            ResolveError::TimelineNotFound { .. } => (-32003, err.to_string()),
-            ResolveError::MediaNotFound { .. } => (-32004, err.to_string()),
-            ResolveError::BinNotFound { .. } => (-32005, err.to_string()),
-            ResolveError::InvalidTimelineItemId { .. } => (-32006, err.to_string()),
-            ResolveError::InvalidNodeIndex { .. } => (-32007, err.to_string()),
-            ResolveError::InvalidParameter { .. } => (-32602, err.to_string()),
-            ResolveError::NotSupported { .. } => (-32601, err.to_string()),
-            ResolveError::FileNotFound { .. } => (-32008, err.to_string()),
-            ResolveError::PermissionDenied { .. } => (-32009, err.to_string()),
-            ResolveError::Timeout { .. } => (-32010, err.to_string()),
-            _ => (-32603, err.to_string()),
-        };
-        
-        mcp::JsonRpcError::new(code, message, None)
+        match err {
+            ResolveError::NotRunning => rmcp::Error::invalid_request(err.to_string(), None),
+            ResolveError::ProjectNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::TimelineNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::MediaNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::BinNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::ToolNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::InvalidTimelineItemId { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::InvalidNodeIndex { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::InvalidParameter { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::NotSupported { .. } => rmcp::Error::internal_error(err.to_string(), None),
+            ResolveError::FileNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::PermissionDenied { .. } => rmcp::Error::internal_error(err.to_string(), None),
+            ResolveError::Timeout { .. } => rmcp::Error::internal_error(err.to_string(), None),
+            _ => rmcp::Error::internal_error(err.to_string(), None),
+        }
     }
 } 

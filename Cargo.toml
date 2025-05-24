@@ -3,30 +3,27 @@ name = "davinci-mcp-rs"
 version = "2.0.0"
 edition = "2021"
 authors = ["DaVinci Resolve MCP Team"]
-description = "High-performance Rust implementation of DaVinci Resolve MCP Server"
+description = "High-performance MCP server for DaVinci Resolve automation"
 license = "MIT"
+repository = "https://github.com/modelcontextprotocol/davinci-mcp-rs"
 readme = "README.md"
-repository = "https://github.com/your-org/davinci-resolve-mcp"
-keywords = ["davinci-resolve", "mcp", "video-editing", "color-grading"]
-categories = ["multimedia", "api-bindings"]
+keywords = ["mcp", "davinci-resolve", "video-editing", "automation"]
+categories = ["multimedia::video", "api-bindings"]
 
 [[bin]]
 name = "davinci-mcp-server"
 path = "src/bin/server.rs"
 
 [dependencies]
-# MCP and async runtime
-rmcp = { version = "0.1", features = ["server"] }
-tokio = { version = "1.0", features = ["full"] }
+# MCP Protocol
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main" }
 
-# Python integration
-pyo3 = { version = "0.22", features = ["auto-initialize"], optional = true }
-pythonize = { version = "0.22", optional = true }
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-schemars = { version = "0.8", features = ["derive"] }
 
 # Error handling
 anyhow = "1.0"
@@ -34,17 +31,25 @@ thiserror = "1.0"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Additional utilities
+# JSON Schema validation
+schemars = { version = "0.8", features = ["derive"] }
+
+# UUID generation for tracking operations
 uuid = { version = "1.0", features = ["v4"] }
+
+# Time handling for timestamps
 chrono = { version = "0.4", features = ["serde"] }
-toml = "0.8"
-clap = { version = "4.0", features = ["derive"] }
+
+# File system operations
+walkdir = "2.0"
 
 [dev-dependencies]
 tokio-test = "0.4"
 
-[features]
-default = ["python-bridge"]
-python-bridge = ["pyo3", "pythonize"]
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

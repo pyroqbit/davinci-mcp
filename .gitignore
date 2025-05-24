@@ -1,19 +1,45 @@
 # Rust
 /target/
 Cargo.lock
+**/*.rs.bk
+*.pdb
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Logs
 *.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+/dist/
+/build/
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# Editor backups
+*.bak
+*.backup
 
 # Python
 __pycache__/
@@ -21,9 +47,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -36,12 +60,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Environment
-.env
-.venv
-env/
-venv/
 
 # Configuration
 config.toml 

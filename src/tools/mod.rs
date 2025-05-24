@@ -188,6 +188,117 @@ pub struct GetTimelineTracksRequest {
     pub timeline_name: Option<String>,
 }
 
+// ---- Color Operations Request Types (Phase 3 Week 3) ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ApplyLutRequest {
+    #[schemars(description = "Path to the LUT file to apply")]
+    pub lut_path: String,
+    #[schemars(description = "Index of the node to apply the LUT to (uses current node if None)")]
+    pub node_index: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetColorWheelParamRequest {
+    #[schemars(description = "Which color wheel to adjust ('lift', 'gamma', 'gain', 'offset')")]
+    pub wheel: String,
+    #[schemars(description = "Which parameter to adjust ('red', 'green', 'blue', 'master')")]
+    pub param: String,
+    #[schemars(description = "The value to set (typically between -1.0 and 1.0)")]
+    pub value: f64,
+    #[schemars(description = "Index of the node to set parameter for (uses current node if None)")]
+    pub node_index: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddNodeRequest {
+    #[schemars(description = "Type of node to add. Options: 'serial', 'parallel', 'layer'")]
+    #[serde(default = "default_node_type")]
+    pub node_type: String,
+    #[schemars(description = "Optional label/name for the new node")]
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CopyGradeRequest {
+    #[schemars(description = "Name of the source clip to copy grade from (uses current clip if None)")]
+    pub source_clip_name: Option<String>,
+    #[schemars(description = "Name of the target clip to apply grade to (uses current clip if None)")]
+    pub target_clip_name: Option<String>,
+    #[schemars(description = "What to copy - 'full' (entire grade), 'current_node', or 'all_nodes'")]
+    #[serde(default = "default_copy_mode")]
+    pub mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SaveColorPresetRequest {
+    #[schemars(description = "Name of the clip to save preset from (uses current clip if None)")]
+    pub clip_name: Option<String>,
+    #[schemars(description = "Name to give the preset (uses clip name if None)")]
+    pub preset_name: Option<String>,
+    #[schemars(description = "Album to save the preset to")]
+    #[serde(default = "default_album")]
+    pub album_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ApplyColorPresetRequest {
+    #[schemars(description = "ID of the preset to apply (if known)")]
+    pub preset_id: Option<String>,
+    #[schemars(description = "Name of the preset to apply (searches in album)")]
+    pub preset_name: Option<String>,
+    #[schemars(description = "Name of the clip to apply preset to (uses current clip if None)")]
+    pub clip_name: Option<String>,
+    #[schemars(description = "Album containing the preset")]
+    #[serde(default = "default_album")]
+    pub album_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteColorPresetRequest {
+    #[schemars(description = "ID of the preset to delete (if known)")]
+    pub preset_id: Option<String>,
+    #[schemars(description = "Name of the preset to delete (searches in album)")]
+    pub preset_name: Option<String>,
+    #[schemars(description = "Album containing the preset")]
+    #[serde(default = "default_album")]
+    pub album_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportLutRequest {
+    #[schemars(description = "Name of the clip to export grade from (uses current clip if None)")]
+    pub clip_name: Option<String>,
+    #[schemars(description = "Path to save the LUT file (generated if None)")]
+    pub export_path: Option<String>,
+    #[schemars(description = "Format of the LUT. Options: 'Cube', 'Davinci', '3dl', 'Panasonic'")]
+    #[serde(default = "default_lut_format")]
+    pub lut_format: String,
+    #[schemars(description = "Size of the LUT. Options: '17Point', '33Point', '65Point'")]
+    #[serde(default = "default_lut_size")]
+    pub lut_size: String,
+}
+
+// Helper functions for color operations defaults
+fn default_node_type() -> String {
+    "serial".to_string()
+}
+
+fn default_copy_mode() -> String {
+    "full".to_string()
+}
+
+fn default_album() -> String {
+    "DaVinci Resolve".to_string()
+}
+
+fn default_lut_format() -> String {
+    "Cube".to_string()
+}
+
+fn default_lut_size() -> String {
+    "33Point".to_string()
+}
+
 // ============================================
 // TOOL IMPLEMENTATIONS
 // ============================================
@@ -494,6 +605,81 @@ pub async fn handle_tool_call(
         }
         "list_timelines_tool" => {
             let response = bridge.call_api("list_timelines_tool", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Color Operations Request Types (Phase 3 Week 3) ----
+        "apply_lut" => {
+            let req: ApplyLutRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("apply_lut", serde_json::json!({
+                "lut_path": req.lut_path,
+                "node_index": req.node_index
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_color_wheel_param" => {
+            let req: SetColorWheelParamRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_color_wheel_param", serde_json::json!({
+                "wheel": req.wheel,
+                "param": req.param,
+                "value": req.value,
+                "node_index": req.node_index
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "add_node" => {
+            let req: AddNodeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_node", serde_json::json!({
+                "node_type": req.node_type,
+                "label": req.label
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "copy_grade" => {
+            let req: CopyGradeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("copy_grade", serde_json::json!({
+                "source_clip_name": req.source_clip_name,
+                "target_clip_name": req.target_clip_name,
+                "mode": req.mode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "save_color_preset" => {
+            let req: SaveColorPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("save_color_preset", serde_json::json!({
+                "clip_name": req.clip_name,
+                "preset_name": req.preset_name,
+                "album_name": req.album_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "apply_color_preset" => {
+            let req: ApplyColorPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("apply_color_preset", serde_json::json!({
+                "preset_id": req.preset_id,
+                "preset_name": req.preset_name,
+                "clip_name": req.clip_name,
+                "album_name": req.album_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_color_preset" => {
+            let req: DeleteColorPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_color_preset", serde_json::json!({
+                "preset_id": req.preset_id,
+                "preset_name": req.preset_name,
+                "album_name": req.album_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_lut" => {
+            let req: ExportLutRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_lut", serde_json::json!({
+                "clip_name": req.clip_name,
+                "export_path": req.export_path,
+                "lut_format": req.lut_format,
+                "lut_size": req.lut_size
+            })).await?;
             Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }
 

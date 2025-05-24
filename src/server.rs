@@ -471,6 +471,202 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // ==================== PHASE 3 WEEK 3: COLOR OPERATIONS ====================
+
+            Tool::new(
+                "apply_lut",
+                "Apply a LUT to a node in the color page",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "lut_path": {
+                            "type": "string",
+                            "description": "Path to the LUT file to apply"
+                        },
+                        "node_index": {
+                            "type": "integer",
+                            "description": "Index of the node to apply the LUT to (uses current node if None)"
+                        }
+                    },
+                    "required": ["lut_path"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_color_wheel_param",
+                "Set a color wheel parameter for a node",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "wheel": {
+                            "type": "string",
+                            "description": "Which color wheel to adjust",
+                            "enum": ["lift", "gamma", "gain", "offset"]
+                        },
+                        "param": {
+                            "type": "string", 
+                            "description": "Which parameter to adjust",
+                            "enum": ["red", "green", "blue", "master"]
+                        },
+                        "value": {
+                            "type": "number",
+                            "description": "The value to set (typically between -1.0 and 1.0)"
+                        },
+                        "node_index": {
+                            "type": "integer",
+                            "description": "Index of the node to set parameter for (uses current node if None)"
+                        }
+                    },
+                    "required": ["wheel", "param", "value"]
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_node",
+                "Add a new node to the current grade in the color page",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "node_type": {
+                            "type": "string",
+                            "description": "Type of node to add",
+                            "enum": ["serial", "parallel", "layer"],
+                            "default": "serial"
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Optional label/name for the new node"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "copy_grade",
+                "Copy a grade from one clip to another in the color page",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "source_clip_name": {
+                            "type": "string",
+                            "description": "Name of the source clip to copy grade from (uses current clip if None)"
+                        },
+                        "target_clip_name": {
+                            "type": "string",
+                            "description": "Name of the target clip to apply grade to (uses current clip if None)"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": "What to copy",
+                            "enum": ["full", "current_node", "all_nodes"],
+                            "default": "full"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "save_color_preset",
+                "Save a color preset from the specified clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to save preset from (uses current clip if None)"
+                        },
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name to give the preset (uses clip name if None)"
+                        },
+                        "album_name": {
+                            "type": "string",
+                            "description": "Album to save the preset to",
+                            "default": "DaVinci Resolve"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "apply_color_preset",
+                "Apply a color preset to the specified clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_id": {
+                            "type": "string",
+                            "description": "ID of the preset to apply (if known)"
+                        },
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the preset to apply (searches in album)"
+                        },
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to apply preset to (uses current clip if None)"
+                        },
+                        "album_name": {
+                            "type": "string",
+                            "description": "Album containing the preset",
+                            "default": "DaVinci Resolve"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_color_preset",
+                "Delete a color preset",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_id": {
+                            "type": "string",
+                            "description": "ID of the preset to delete (if known)"
+                        },
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the preset to delete (searches in album)"
+                        },
+                        "album_name": {
+                            "type": "string",
+                            "description": "Album containing the preset",
+                            "default": "DaVinci Resolve"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_lut",
+                "Export a LUT from the current clip's grade",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to export grade from (uses current clip if None)"
+                        },
+                        "export_path": {
+                            "type": "string",
+                            "description": "Path to save the LUT file (generated if None)"
+                        },
+                        "lut_format": {
+                            "type": "string",
+                            "description": "Format of the LUT",
+                            "enum": ["Cube", "Davinci", "3dl", "Panasonic"],
+                            "default": "Cube"
+                        },
+                        "lut_size": {
+                            "type": "string",
+                            "description": "Size of the LUT",
+                            "enum": ["17Point", "33Point", "65Point"],
+                            "default": "33Point"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -535,7 +731,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 20 tools including project management, timeline operations, media pool management, and timeline enhancement features".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 28 tools including project management, timeline operations, media pool management, timeline enhancement features, and comprehensive color grading operations".to_string()),
         }
     }
 }

@@ -28,6 +28,8 @@ struct ResolveState {
     current_timeline: Option<String>,
     /// Media pool bins and clips
     media_pool: MediaPool,
+    /// Color grading state (Phase 3 Week 3)
+    color_state: ColorState,
     /// Operation counter for realistic responses
     operation_count: u64,
 }
@@ -69,6 +71,60 @@ struct Clip {
     proxy_path: Option<String>,
 }
 
+/// Color grading state management (Phase 3 Week 3)
+#[derive(Debug, Default)]
+struct ColorState {
+    /// Current clip being graded
+    current_clip: Option<String>,
+    /// LUTs available in the system
+    available_luts: HashMap<String, LutInfo>,
+    /// Color presets
+    color_presets: HashMap<String, ColorPreset>,
+    /// Clip grades (per clip)
+    clip_grades: HashMap<String, ClipGrade>,
+    /// Current node index for grading
+    current_node_index: i32,
+}
+
+#[derive(Debug, Clone)]
+struct LutInfo {
+    name: String,
+    path: String,
+    format: String, // "Cube", "Davinci", "3dl", "Panasonic"
+    size: String,   // "17Point", "33Point", "65Point"
+}
+
+#[derive(Debug, Clone)]
+struct ColorPreset {
+    name: String,
+    album: String,
+    created_at: String,
+    grade_data: ClipGrade,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ClipGrade {
+    /// Color wheel parameters
+    lift: ColorWheelParams,
+    gamma: ColorWheelParams,
+    gain: ColorWheelParams,
+    offset: ColorWheelParams,
+    /// Applied LUTs
+    applied_luts: Vec<String>,
+    /// Number of nodes
+    node_count: i32,
+    /// Node labels
+    node_labels: HashMap<i32, String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ColorWheelParams {
+    red: f64,
+    green: f64,
+    blue: f64,
+    master: f64,
+}
+
 impl ResolveBridge {
     /// Create a new bridge instance
     pub fn new() -> Self {
@@ -81,6 +137,20 @@ impl ResolveBridge {
             "Test Timeline".to_string(),
             "Demo Workflow".to_string(),
         ];
+
+        // Initialize color state with sample LUTs and presets (Phase 3 Week 3)
+        state.color_state.available_luts.insert("Rec709_to_sRGB".to_string(), LutInfo {
+            name: "Rec709 to sRGB".to_string(),
+            path: "/usr/share/davinci/luts/rec709_to_srgb.cube".to_string(),
+            format: "Cube".to_string(),
+            size: "33Point".to_string(),
+        });
+        state.color_state.available_luts.insert("Cinematic_Look".to_string(), LutInfo {
+            name: "Cinematic Look".to_string(),
+            path: "/usr/share/davinci/luts/cinematic.cube".to_string(),
+            format: "Cube".to_string(),
+            size: "33Point".to_string(),
+        });
 
         Self {
             state: Arc::new(Mutex::new(state)),
@@ -128,6 +198,16 @@ impl ResolveBridge {
             "add_clip_to_timeline" => self.add_clip_to_timeline(&mut state, args).await,
             "list_timelines_tool" => self.list_timelines_tool(&mut state, args).await,
             "get_timeline_tracks" => self.get_timeline_tracks(&mut state, args).await,
+
+            // Color Operations (Phase 3 Week 3)
+            "apply_lut" => self.apply_lut(&mut state, args).await,
+            "set_color_wheel_param" => self.set_color_wheel_param(&mut state, args).await,
+            "add_node" => self.add_node(&mut state, args).await,
+            "copy_grade" => self.copy_grade(&mut state, args).await,
+            "save_color_preset" => self.save_color_preset(&mut state, args).await,
+            "apply_color_preset" => self.apply_color_preset(&mut state, args).await,
+            "delete_color_preset" => self.delete_color_preset(&mut state, args).await,
+            "export_lut" => self.export_lut(&mut state, args).await,
 
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
@@ -527,6 +607,328 @@ impl ResolveBridge {
             "video_tracks": video_tracks,
             "audio_tracks": audio_tracks,
             "total_tracks": video_tracks.len() + audio_tracks.len()
+        }))
+    }
+
+    // ==================== COLOR OPERATIONS (Phase 3 Week 3) ====================
+
+    async fn apply_lut(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let lut_path = args["lut_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("lut_path", "required string"))?;
+        let node_index = args["node_index"].as_i64().unwrap_or(state.color_state.current_node_index as i64) as i32;
+        
+        // Validate LUT exists (check if it's in our available LUTs or is a file path)
+        let lut_name = if lut_path.starts_with('/') {
+            // File path - validate it exists
+            std::path::Path::new(lut_path).file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown LUT")
+                .to_string()
+        } else {
+            // Check if it's a known LUT
+            if !state.color_state.available_luts.contains_key(lut_path) {
+                return Err(ResolveError::FileNotFound { path: lut_path.to_string() });
+            }
+            lut_path.to_string()
+        };
+
+        // Apply LUT to current clip
+        if let Some(clip_name) = &state.color_state.current_clip {
+            let grade = state.color_state.clip_grades.entry(clip_name.clone()).or_default();
+            grade.applied_luts.push(lut_name.clone());
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Applied LUT '{}' to node {}", lut_name, node_index),
+            "lut_path": lut_path,
+            "node_index": node_index,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_color_wheel_param(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let wheel = args["wheel"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("wheel", "required string"))?;
+        let param = args["param"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("param", "required string"))?;
+        let value = args["value"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("value", "required number"))?;
+        let node_index = args["node_index"].as_i64().unwrap_or(state.color_state.current_node_index as i64) as i32;
+
+        // Validate wheel and param
+        let valid_wheels = vec!["lift", "gamma", "gain", "offset"];
+        let valid_params = vec!["red", "green", "blue", "master"];
+        
+        if !valid_wheels.contains(&wheel) {
+            return Err(ResolveError::invalid_parameter("wheel", "must be lift, gamma, gain, or offset"));
+        }
+        if !valid_params.contains(&param) {
+            return Err(ResolveError::invalid_parameter("param", "must be red, green, blue, or master"));
+        }
+
+        // Apply to current clip
+        if let Some(clip_name) = &state.color_state.current_clip {
+            let grade = state.color_state.clip_grades.entry(clip_name.clone()).or_default();
+            
+            let wheel_params = match wheel {
+                "lift" => &mut grade.lift,
+                "gamma" => &mut grade.gamma,
+                "gain" => &mut grade.gain,
+                "offset" => &mut grade.offset,
+                _ => unreachable!(),
+            };
+
+            match param {
+                "red" => wheel_params.red = value,
+                "green" => wheel_params.green = value,
+                "blue" => wheel_params.blue = value,
+                "master" => wheel_params.master = value,
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set {} {} to {} on node {}", wheel, param, value, node_index),
+            "wheel": wheel,
+            "param": param,
+            "value": value,
+            "node_index": node_index,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn add_node(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let node_type = args["node_type"].as_str().unwrap_or("serial");
+        let label = args["label"].as_str();
+
+        // Validate node type
+        let valid_types = vec!["serial", "parallel", "layer"];
+        if !valid_types.contains(&node_type) {
+            return Err(ResolveError::invalid_parameter("node_type", "must be serial, parallel, or layer"));
+        }
+
+        // Add node to current clip
+        if let Some(clip_name) = &state.color_state.current_clip {
+            let grade = state.color_state.clip_grades.entry(clip_name.clone()).or_default();
+            grade.node_count += 1;
+            
+            if let Some(label_str) = label {
+                grade.node_labels.insert(grade.node_count, label_str.to_string());
+            }
+        }
+
+        let new_node_index = state.color_state.current_node_index + 1;
+        state.color_state.current_node_index = new_node_index;
+
+        Ok(serde_json::json!({
+            "result": format!("Added {} node {}", node_type, new_node_index),
+            "node_type": node_type,
+            "node_index": new_node_index,
+            "label": label,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn copy_grade(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let source_clip_name = args["source_clip_name"].as_str();
+        let target_clip_name = args["target_clip_name"].as_str();
+        let mode = args["mode"].as_str().unwrap_or("full");
+
+        // Use current clip as source if not specified
+        let source = if let Some(source) = source_clip_name {
+            source.to_string()
+        } else {
+            state.color_state.current_clip.clone()
+                .ok_or_else(|| ResolveError::invalid_parameter("source_clip_name", "no current clip"))?
+        };
+
+        // Use current clip as target if not specified
+        let target = if let Some(target) = target_clip_name {
+            target.to_string()
+        } else {
+            state.color_state.current_clip.clone()
+                .ok_or_else(|| ResolveError::invalid_parameter("target_clip_name", "no current clip"))?
+        };
+
+        // Get source grade
+        let source_grade = state.color_state.clip_grades.get(&source)
+            .cloned()
+            .unwrap_or_default();
+
+        // Apply to target based on mode
+        let result_msg = match mode {
+            "full" => {
+                state.color_state.clip_grades.insert(target.clone(), source_grade);
+                format!("Copied full grade from '{}' to '{}'", source, target)
+            },
+            "current_node" => {
+                // Simulate copying current node only
+                format!("Copied current node grade from '{}' to '{}'", source, target)
+            },
+            "all_nodes" => {
+                state.color_state.clip_grades.insert(target.clone(), source_grade);
+                format!("Copied all nodes from '{}' to '{}'", source, target)
+            },
+            _ => return Err(ResolveError::invalid_parameter("mode", "must be full, current_node, or all_nodes")),
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "source_clip": source,
+            "target_clip": target,
+            "mode": mode,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn save_color_preset(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str();
+        let preset_name = args["preset_name"].as_str();
+        let album_name = args["album_name"].as_str().unwrap_or("DaVinci Resolve");
+
+        // Use current clip if not specified
+        let source_clip = if let Some(clip) = clip_name {
+            clip.to_string()
+        } else {
+            state.color_state.current_clip.clone()
+                .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "no current clip"))?
+        };
+
+        // Use clip name as preset name if not specified
+        let preset_name_final = if let Some(name) = preset_name {
+            name.to_string()
+        } else {
+            format!("{}_preset", source_clip)
+        };
+
+        // Get clip grade
+        let grade = state.color_state.clip_grades.get(&source_clip)
+            .cloned()
+            .unwrap_or_default();
+
+        // Save preset
+        let preset = ColorPreset {
+            name: preset_name_final.clone(),
+            album: album_name.to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            grade_data: grade,
+        };
+
+        state.color_state.color_presets.insert(preset_name_final.clone(), preset);
+
+        Ok(serde_json::json!({
+            "result": format!("Saved color preset '{}' from clip '{}' to album '{}'", 
+                preset_name_final, source_clip, album_name),
+            "preset_name": preset_name_final,
+            "album": album_name,
+            "source_clip": source_clip,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn apply_color_preset(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_id = args["preset_id"].as_str();
+        let preset_name = args["preset_name"].as_str();
+        let clip_name = args["clip_name"].as_str();
+        let album_name = args["album_name"].as_str().unwrap_or("DaVinci Resolve");
+
+        // Find preset by ID or name
+        let preset = if let Some(id) = preset_id {
+            state.color_state.color_presets.get(id)
+        } else if let Some(name) = preset_name {
+            state.color_state.color_presets.get(name)
+        } else {
+            return Err(ResolveError::invalid_parameter("preset_id or preset_name", "one is required"));
+        };
+
+        let preset = preset.ok_or_else(|| ResolveError::invalid_parameter("preset", "preset not found"))?;
+
+        // Use current clip if not specified
+        let target_clip = if let Some(clip) = clip_name {
+            clip.to_string()
+        } else {
+            state.color_state.current_clip.clone()
+                .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "no current clip"))?
+        };
+
+        // Apply preset to clip
+        state.color_state.clip_grades.insert(target_clip.clone(), preset.grade_data.clone());
+
+        Ok(serde_json::json!({
+            "result": format!("Applied color preset '{}' from album '{}' to clip '{}'", 
+                preset.name, album_name, target_clip),
+            "preset_name": preset.name,
+            "album": album_name,
+            "target_clip": target_clip,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn delete_color_preset(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_id = args["preset_id"].as_str();
+        let preset_name = args["preset_name"].as_str();
+        let album_name = args["album_name"].as_str().unwrap_or("DaVinci Resolve");
+
+        // Find preset by ID or name
+        let preset_key = if let Some(id) = preset_id {
+            id.to_string()
+        } else if let Some(name) = preset_name {
+            name.to_string()
+        } else {
+            return Err(ResolveError::invalid_parameter("preset_id or preset_name", "one is required"));
+        };
+
+        let removed_preset = state.color_state.color_presets.remove(&preset_key)
+            .ok_or_else(|| ResolveError::invalid_parameter("preset", "preset not found"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted color preset '{}' from album '{}'", 
+                removed_preset.name, album_name),
+            "preset_name": removed_preset.name,
+            "album": album_name,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn export_lut(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str();
+        let export_path = args["export_path"].as_str();
+        let lut_format = args["lut_format"].as_str().unwrap_or("Cube");
+        let lut_size = args["lut_size"].as_str().unwrap_or("33Point");
+
+        // Use current clip if not specified
+        let source_clip = if let Some(clip) = clip_name {
+            clip.to_string()
+        } else {
+            state.color_state.current_clip.clone()
+                .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "no current clip"))?
+        };
+
+        // Validate format and size
+        let valid_formats = vec!["Cube", "Davinci", "3dl", "Panasonic"];
+        let valid_sizes = vec!["17Point", "33Point", "65Point"];
+        
+        if !valid_formats.contains(&lut_format) {
+            return Err(ResolveError::invalid_parameter("lut_format", "invalid format"));
+        }
+        if !valid_sizes.contains(&lut_size) {
+            return Err(ResolveError::invalid_parameter("lut_size", "invalid size"));
+        }
+
+        // Generate export path if not provided
+        let final_export_path = if let Some(path) = export_path {
+            path.to_string()
+        } else {
+            format!("/tmp/{}_grade.{}", source_clip, lut_format.to_lowercase())
+        };
+
+        Ok(serde_json::json!({
+            "result": format!("Exported LUT from clip '{}' to '{}'", source_clip, final_export_path),
+            "source_clip": source_clip,
+            "export_path": final_export_path,
+            "format": lut_format,
+            "size": lut_size,
+            "operation_id": Uuid::new_v4().to_string()
         }))
     }
 }

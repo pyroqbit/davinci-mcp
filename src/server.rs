@@ -667,6 +667,207 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // ==================== PHASE 4 WEEK 1: TIMELINE ITEM MANIPULATION ====================
+
+            Tool::new(
+                "set_timeline_item_transform",
+                "Set a transform property for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "property_name": {
+                            "type": "string",
+                            "description": "The name of the property to set",
+                            "enum": ["Pan", "Tilt", "ZoomX", "ZoomY", "Rotation", "AnchorPointX", "AnchorPointY", "Pitch", "Yaw"]
+                        },
+                        "property_value": {
+                            "type": "number",
+                            "description": "The value to set for the property"
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_name", "property_value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_crop",
+                "Set a crop property for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "crop_type": {
+                            "type": "string",
+                            "description": "The type of crop to set",
+                            "enum": ["Left", "Right", "Top", "Bottom"]
+                        },
+                        "crop_value": {
+                            "type": "number",
+                            "description": "The value to set for the crop (0.0 to 1.0)",
+                            "minimum": 0.0,
+                            "maximum": 1.0
+                        }
+                    },
+                    "required": ["timeline_item_id", "crop_type", "crop_value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_composite",
+                "Set composite properties for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "composite_mode": {
+                            "type": "string",
+                            "description": "Optional composite mode to set",
+                            "enum": ["Normal", "Add", "Multiply", "Screen", "Overlay", "SoftLight", "HardLight", "ColorDodge", "ColorBurn", "Darken", "Lighten", "Difference", "Exclusion"]
+                        },
+                        "opacity": {
+                            "type": "number",
+                            "description": "Optional opacity value to set (0.0 to 1.0)",
+                            "minimum": 0.0,
+                            "maximum": 1.0
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_retime",
+                "Set retiming properties for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "speed": {
+                            "type": "number",
+                            "description": "Optional speed factor (e.g., 0.5 for 50%, 2.0 for 200%)",
+                            "minimum": 0.0,
+                            "maximum": 10.0
+                        },
+                        "process": {
+                            "type": "string",
+                            "description": "Optional retime process",
+                            "enum": ["NearestFrame", "FrameBlend", "OpticalFlow"]
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_stabilization",
+                "Set stabilization properties for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "enabled": {
+                            "type": "boolean",
+                            "description": "Optional boolean to enable/disable stabilization"
+                        },
+                        "method": {
+                            "type": "string",
+                            "description": "Optional stabilization method",
+                            "enum": ["Perspective", "Similarity", "Translation"]
+                        },
+                        "strength": {
+                            "type": "number",
+                            "description": "Optional strength value (0.0 to 1.0)",
+                            "minimum": 0.0,
+                            "maximum": 1.0
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_audio",
+                "Set audio properties for a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to modify"
+                        },
+                        "volume": {
+                            "type": "number",
+                            "description": "Optional volume level (0.0 to 2.0, where 1.0 is unity gain)",
+                            "minimum": 0.0,
+                            "maximum": 2.0
+                        },
+                        "pan": {
+                            "type": "number",
+                            "description": "Optional pan value (-1.0 to 1.0, where -1.0 is left, 0 is center, 1.0 is right)",
+                            "minimum": -1.0,
+                            "maximum": 1.0
+                        },
+                        "eq_enabled": {
+                            "type": "boolean",
+                            "description": "Optional boolean to enable/disable EQ"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_item_properties",
+                "Get all properties of a timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to retrieve properties from"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "reset_timeline_item_properties",
+                "Reset timeline item properties to default values",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "The ID of the timeline item to reset"
+                        },
+                        "property_type": {
+                            "type": "string",
+                            "description": "Optional property type to reset. If None, resets all properties",
+                            "enum": ["transform", "crop", "composite", "retime", "stabilization", "audio"]
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -731,7 +932,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 28 tools including project management, timeline operations, media pool management, timeline enhancement features, and comprehensive color grading operations".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 36 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, and professional timeline item manipulation".to_string()),
         }
     }
 }

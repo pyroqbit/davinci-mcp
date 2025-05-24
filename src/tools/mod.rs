@@ -278,6 +278,85 @@ pub struct ExportLutRequest {
     pub lut_size: String,
 }
 
+// ---- Timeline Item Operations Request Types (Phase 4 Week 1) ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemTransformRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The name of the property to set. Options: 'Pan', 'Tilt', 'ZoomX', 'ZoomY', 'Rotation', 'AnchorPointX', 'AnchorPointY', 'Pitch', 'Yaw'")]
+    pub property_name: String,
+    #[schemars(description = "The value to set for the property")]
+    pub property_value: f64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemCropRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "The type of crop to set. Options: 'Left', 'Right', 'Top', 'Bottom'")]
+    pub crop_type: String,
+    #[schemars(description = "The value to set for the crop (0.0 to 1.0)")]
+    pub crop_value: f64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemCompositeRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional composite mode to set (e.g., 'Normal', 'Add', 'Multiply')")]
+    pub composite_mode: Option<String>,
+    #[schemars(description = "Optional opacity value to set (0.0 to 1.0)")]
+    pub opacity: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemRetimeRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional speed factor (e.g., 0.5 for 50%, 2.0 for 200%)")]
+    pub speed: Option<f64>,
+    #[schemars(description = "Optional retime process. Options: 'NearestFrame', 'FrameBlend', 'OpticalFlow'")]
+    pub process: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemStabilizationRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional boolean to enable/disable stabilization")]
+    pub enabled: Option<bool>,
+    #[schemars(description = "Optional stabilization method. Options: 'Perspective', 'Similarity', 'Translation'")]
+    pub method: Option<String>,
+    #[schemars(description = "Optional strength value (0.0 to 1.0)")]
+    pub strength: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemAudioRequest {
+    #[schemars(description = "The ID of the timeline item to modify")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional volume level (0.0 to 2.0, where 1.0 is unity gain)")]
+    pub volume: Option<f64>,
+    #[schemars(description = "Optional pan value (-1.0 to 1.0, where -1.0 is left, 0 is center, 1.0 is right)")]
+    pub pan: Option<f64>,
+    #[schemars(description = "Optional boolean to enable/disable EQ")]
+    pub eq_enabled: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineItemPropertiesRequest {
+    #[schemars(description = "The ID of the timeline item to retrieve properties from")]
+    pub timeline_item_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResetTimelineItemPropertiesRequest {
+    #[schemars(description = "The ID of the timeline item to reset")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Optional property type to reset. Options: 'transform', 'crop', 'composite', 'retime', 'stabilization', 'audio'. If None, resets all properties")]
+    pub property_type: Option<String>,
+}
+
 // Helper functions for color operations defaults
 fn default_node_type() -> String {
     "serial".to_string()
@@ -679,6 +758,79 @@ pub async fn handle_tool_call(
                 "export_path": req.export_path,
                 "lut_format": req.lut_format,
                 "lut_size": req.lut_size
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Timeline Item Operations Request Types (Phase 4 Week 1) ----
+        "set_timeline_item_transform" => {
+            let req: SetTimelineItemTransformRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_transform", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_name": req.property_name,
+                "property_value": req.property_value
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_item_crop" => {
+            let req: SetTimelineItemCropRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_crop", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "crop_type": req.crop_type,
+                "crop_value": req.crop_value
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_item_composite" => {
+            let req: SetTimelineItemCompositeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_composite", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "composite_mode": req.composite_mode,
+                "opacity": req.opacity
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_item_retime" => {
+            let req: SetTimelineItemRetimeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_retime", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "speed": req.speed,
+                "process": req.process
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_item_stabilization" => {
+            let req: SetTimelineItemStabilizationRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_stabilization", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "enabled": req.enabled,
+                "method": req.method,
+                "strength": req.strength
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_item_audio" => {
+            let req: SetTimelineItemAudioRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_item_audio", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "volume": req.volume,
+                "pan": req.pan,
+                "eq_enabled": req.eq_enabled
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_item_properties" => {
+            let req: GetTimelineItemPropertiesRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_item_properties", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "reset_timeline_item_properties" => {
+            let req: ResetTimelineItemPropertiesRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("reset_timeline_item_properties", serde_json::json!({
+                "timeline_item_id": req.timeline_item_id,
+                "property_type": req.property_type
             })).await?;
             Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }

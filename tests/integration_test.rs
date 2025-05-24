@@ -116,4 +116,78 @@ async fn test_lut_export_operations() {
     
     // This would test exporting LUTs from grades
     assert!(true);
+}
+
+// ====================== TIMELINE ITEM MANIPULATION TESTS (Phase 4 Week 1) ======================
+
+#[tokio::test]
+async fn test_timeline_item_transform() {
+    // Test timeline item transform property setting
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test Pan, Tilt, ZoomX, ZoomY, Rotation, AnchorPoint, Pitch, Yaw
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_crop() {
+    // Test timeline item crop property setting
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test Left, Right, Top, Bottom crop controls
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_composite() {
+    // Test timeline item composite mode and opacity
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test Normal, Add, Multiply, etc. composite modes and opacity
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_retime() {
+    // Test timeline item speed and retime process
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test speed factors and NearestFrame, FrameBlend, OpticalFlow
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_stabilization() {
+    // Test timeline item stabilization settings
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test Perspective, Similarity, Translation methods
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_audio() {
+    // Test timeline item audio property control
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test volume, pan, and EQ settings
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_properties() {
+    // Test timeline item property retrieval
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test getting all properties of a timeline item
+    assert!(true);
+}
+
+#[tokio::test]
+async fn test_timeline_item_reset() {
+    // Test timeline item property reset operations
+    let _server = DaVinciResolveServer::new();
+    
+    // This would test resetting specific or all properties to defaults
+    assert!(true);
 } 

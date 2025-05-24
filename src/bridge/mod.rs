@@ -32,6 +32,8 @@ struct ResolveState {
     color_state: ColorState,
     /// Operation counter for realistic responses
     operation_count: u64,
+    /// Timeline items state (Phase 4 Week 1)
+    timeline_items: TimelineItemsState,
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +86,84 @@ struct ColorState {
     clip_grades: HashMap<String, ClipGrade>,
     /// Current node index for grading
     current_node_index: i32,
+}
+
+/// Timeline item state management (Phase 4 Week 1)
+#[derive(Debug, Default)]
+struct TimelineItemsState {
+    /// Timeline items by ID
+    items: HashMap<String, TimelineItemState>,
+    /// Current item counter for ID generation
+    item_counter: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TimelineItemState {
+    /// Unique timeline item ID
+    id: String,
+    /// Timeline name this item belongs to
+    timeline_name: String,
+    /// Clip name this item references
+    clip_name: String,
+    /// Transform properties
+    transform: TransformProperties,
+    /// Crop settings
+    crop: CropProperties,
+    /// Composite settings
+    composite: CompositeProperties,
+    /// Retiming settings
+    retime: RetimeProperties,
+    /// Stabilization settings
+    stabilization: StabilizationProperties,
+    /// Audio properties
+    audio: AudioProperties,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TransformProperties {
+    pan: f64,
+    tilt: f64,
+    zoom_x: f64,
+    zoom_y: f64,
+    rotation: f64,
+    anchor_point_x: f64,
+    anchor_point_y: f64,
+    pitch: f64,
+    yaw: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CropProperties {
+    left: f64,
+    right: f64,
+    top: f64,
+    bottom: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CompositeProperties {
+    mode: String,     // "Normal", "Add", "Multiply", etc.
+    opacity: f64,     // 0.0 to 1.0
+}
+
+#[derive(Debug, Clone, Default)]
+struct RetimeProperties {
+    speed: f64,       // Speed factor
+    process: String,  // "NearestFrame", "FrameBlend", "OpticalFlow"
+}
+
+#[derive(Debug, Clone, Default)]
+struct StabilizationProperties {
+    enabled: bool,
+    method: String,   // "Perspective", "Similarity", "Translation"
+    strength: f64,    // 0.0 to 1.0
+}
+
+#[derive(Debug, Clone, Default)]
+struct AudioProperties {
+    volume: f64,      // Volume level (usually 0.0 to 2.0, where 1.0 is unity gain)
+    pan: f64,         // -1.0 to 1.0
+    eq_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -208,6 +288,16 @@ impl ResolveBridge {
             "apply_color_preset" => self.apply_color_preset(&mut state, args).await,
             "delete_color_preset" => self.delete_color_preset(&mut state, args).await,
             "export_lut" => self.export_lut(&mut state, args).await,
+
+            // Timeline Item Operations (Phase 4 Week 1)
+            "set_timeline_item_transform" => self.set_timeline_item_transform(&mut state, args).await,
+            "set_timeline_item_crop" => self.set_timeline_item_crop(&mut state, args).await,
+            "set_timeline_item_composite" => self.set_timeline_item_composite(&mut state, args).await,
+            "set_timeline_item_retime" => self.set_timeline_item_retime(&mut state, args).await,
+            "set_timeline_item_stabilization" => self.set_timeline_item_stabilization(&mut state, args).await,
+            "set_timeline_item_audio" => self.set_timeline_item_audio(&mut state, args).await,
+            "get_timeline_item_properties" => self.get_timeline_item_properties(&mut state, args).await,
+            "reset_timeline_item_properties" => self.reset_timeline_item_properties(&mut state, args).await,
 
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
@@ -928,6 +1018,507 @@ impl ResolveBridge {
             "export_path": final_export_path,
             "format": lut_format,
             "size": lut_size,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    // ==================== TIMELINE ITEM OPERATIONS (Phase 4 Week 1) ====================
+
+    async fn set_timeline_item_transform(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "required string"))?;
+        let property_value = args["property_value"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_value", "required number"))?;
+
+        // Validate property name
+        let valid_properties = vec!["Pan", "Tilt", "ZoomX", "ZoomY", "Rotation", "AnchorPointX", "AnchorPointY", "Pitch", "Yaw"];
+        if !valid_properties.contains(&property_name) {
+            return Err(ResolveError::invalid_parameter("property_name", "invalid transform property"));
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    ..Default::default()
+                }
+            });
+
+        // Set transform property
+        match property_name {
+            "Pan" => timeline_item.transform.pan = property_value,
+            "Tilt" => timeline_item.transform.tilt = property_value,
+            "ZoomX" => timeline_item.transform.zoom_x = property_value,
+            "ZoomY" => timeline_item.transform.zoom_y = property_value,
+            "Rotation" => timeline_item.transform.rotation = property_value,
+            "AnchorPointX" => timeline_item.transform.anchor_point_x = property_value,
+            "AnchorPointY" => timeline_item.transform.anchor_point_y = property_value,
+            "Pitch" => timeline_item.transform.pitch = property_value,
+            "Yaw" => timeline_item.transform.yaw = property_value,
+            _ => unreachable!(),
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set {} to {} for timeline item '{}'", property_name, property_value, timeline_item_id),
+            "timeline_item_id": timeline_item_id,
+            "property_name": property_name,
+            "property_value": property_value,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_timeline_item_crop(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let crop_type = args["crop_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("crop_type", "required string"))?;
+        let crop_value = args["crop_value"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("crop_value", "required number"))?;
+
+        // Validate crop type and value
+        let valid_crop_types = vec!["Left", "Right", "Top", "Bottom"];
+        if !valid_crop_types.contains(&crop_type) {
+            return Err(ResolveError::invalid_parameter("crop_type", "must be Left, Right, Top, or Bottom"));
+        }
+        if crop_value < 0.0 || crop_value > 1.0 {
+            return Err(ResolveError::invalid_parameter("crop_value", "must be between 0.0 and 1.0"));
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    ..Default::default()
+                }
+            });
+
+        // Set crop property
+        match crop_type {
+            "Left" => timeline_item.crop.left = crop_value,
+            "Right" => timeline_item.crop.right = crop_value,
+            "Top" => timeline_item.crop.top = crop_value,
+            "Bottom" => timeline_item.crop.bottom = crop_value,
+            _ => unreachable!(),
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set {} crop to {} for timeline item '{}'", crop_type, crop_value, timeline_item_id),
+            "timeline_item_id": timeline_item_id,
+            "crop_type": crop_type,
+            "crop_value": crop_value,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_timeline_item_composite(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let composite_mode = args["composite_mode"].as_str();
+        let opacity = args["opacity"].as_f64();
+
+        // Validate composite mode if provided
+        if let Some(mode) = composite_mode {
+            let valid_modes = vec!["Normal", "Add", "Multiply", "Screen", "Overlay", "SoftLight", "HardLight", 
+                                 "ColorDodge", "ColorBurn", "Darken", "Lighten", "Difference", "Exclusion"];
+            if !valid_modes.contains(&mode) {
+                return Err(ResolveError::invalid_parameter("composite_mode", "invalid composite mode"));
+            }
+        }
+
+        // Validate opacity if provided
+        if let Some(opacity_val) = opacity {
+            if opacity_val < 0.0 || opacity_val > 1.0 {
+                return Err(ResolveError::invalid_parameter("opacity", "must be between 0.0 and 1.0"));
+            }
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    composite: CompositeProperties {
+                        mode: "Normal".to_string(),
+                        opacity: 1.0,
+                    },
+                    ..Default::default()
+                }
+            });
+
+        // Set composite properties
+        let mut result_parts = Vec::new();
+        if let Some(mode) = composite_mode {
+            timeline_item.composite.mode = mode.to_string();
+            result_parts.push(format!("composite mode to {}", mode));
+        }
+        if let Some(opacity_val) = opacity {
+            timeline_item.composite.opacity = opacity_val;
+            result_parts.push(format!("opacity to {}", opacity_val));
+        }
+
+        let result_msg = if result_parts.is_empty() {
+            "No composite properties changed".to_string()
+        } else {
+            format!("Set {} for timeline item '{}'", result_parts.join(" and "), timeline_item_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "composite_mode": composite_mode,
+            "opacity": opacity,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_timeline_item_retime(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let speed = args["speed"].as_f64();
+        let process = args["process"].as_str();
+
+        // Validate speed if provided
+        if let Some(speed_val) = speed {
+            if speed_val <= 0.0 || speed_val > 10.0 {
+                return Err(ResolveError::invalid_parameter("speed", "must be between 0.0 and 10.0"));
+            }
+        }
+
+        // Validate process if provided
+        if let Some(process_str) = process {
+            let valid_processes = vec!["NearestFrame", "FrameBlend", "OpticalFlow"];
+            if !valid_processes.contains(&process_str) {
+                return Err(ResolveError::invalid_parameter("process", "must be NearestFrame, FrameBlend, or OpticalFlow"));
+            }
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    retime: RetimeProperties {
+                        speed: 1.0,
+                        process: "NearestFrame".to_string(),
+                    },
+                    ..Default::default()
+                }
+            });
+
+        // Set retime properties
+        let mut result_parts = Vec::new();
+        if let Some(speed_val) = speed {
+            timeline_item.retime.speed = speed_val;
+            result_parts.push(format!("speed to {}x", speed_val));
+        }
+        if let Some(process_str) = process {
+            timeline_item.retime.process = process_str.to_string();
+            result_parts.push(format!("process to {}", process_str));
+        }
+
+        let result_msg = if result_parts.is_empty() {
+            "No retime properties changed".to_string()
+        } else {
+            format!("Set {} for timeline item '{}'", result_parts.join(" and "), timeline_item_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "speed": speed,
+            "process": process,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_timeline_item_stabilization(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let enabled = args["enabled"].as_bool();
+        let method = args["method"].as_str();
+        let strength = args["strength"].as_f64();
+
+        // Validate method if provided
+        if let Some(method_str) = method {
+            let valid_methods = vec!["Perspective", "Similarity", "Translation"];
+            if !valid_methods.contains(&method_str) {
+                return Err(ResolveError::invalid_parameter("method", "must be Perspective, Similarity, or Translation"));
+            }
+        }
+
+        // Validate strength if provided
+        if let Some(strength_val) = strength {
+            if strength_val < 0.0 || strength_val > 1.0 {
+                return Err(ResolveError::invalid_parameter("strength", "must be between 0.0 and 1.0"));
+            }
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    stabilization: StabilizationProperties {
+                        enabled: false,
+                        method: "Perspective".to_string(),
+                        strength: 0.5,
+                    },
+                    ..Default::default()
+                }
+            });
+
+        // Set stabilization properties
+        let mut result_parts = Vec::new();
+        if let Some(enabled_val) = enabled {
+            timeline_item.stabilization.enabled = enabled_val;
+            result_parts.push(format!("enabled to {}", enabled_val));
+        }
+        if let Some(method_str) = method {
+            timeline_item.stabilization.method = method_str.to_string();
+            result_parts.push(format!("method to {}", method_str));
+        }
+        if let Some(strength_val) = strength {
+            timeline_item.stabilization.strength = strength_val;
+            result_parts.push(format!("strength to {}", strength_val));
+        }
+
+        let result_msg = if result_parts.is_empty() {
+            "No stabilization properties changed".to_string()
+        } else {
+            format!("Set stabilization {} for timeline item '{}'", result_parts.join(", "), timeline_item_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "enabled": enabled,
+            "method": method,
+            "strength": strength,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_timeline_item_audio(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let volume = args["volume"].as_f64();
+        let pan = args["pan"].as_f64();
+        let eq_enabled = args["eq_enabled"].as_bool();
+
+        // Validate volume if provided
+        if let Some(volume_val) = volume {
+            if volume_val < 0.0 || volume_val > 2.0 {
+                return Err(ResolveError::invalid_parameter("volume", "must be between 0.0 and 2.0"));
+            }
+        }
+
+        // Validate pan if provided
+        if let Some(pan_val) = pan {
+            if pan_val < -1.0 || pan_val > 1.0 {
+                return Err(ResolveError::invalid_parameter("pan", "must be between -1.0 and 1.0"));
+            }
+        }
+
+        // Get or create timeline item
+        let timeline_item = state.timeline_items.items.entry(timeline_item_id.to_string())
+            .or_insert_with(|| {
+                state.timeline_items.item_counter += 1;
+                TimelineItemState {
+                    id: timeline_item_id.to_string(),
+                    timeline_name: state.current_timeline.clone().unwrap_or_default(),
+                    clip_name: format!("clip_{}", state.timeline_items.item_counter),
+                    audio: AudioProperties {
+                        volume: 1.0,
+                        pan: 0.0,
+                        eq_enabled: false,
+                    },
+                    ..Default::default()
+                }
+            });
+
+        // Set audio properties
+        let mut result_parts = Vec::new();
+        if let Some(volume_val) = volume {
+            timeline_item.audio.volume = volume_val;
+            result_parts.push(format!("volume to {}", volume_val));
+        }
+        if let Some(pan_val) = pan {
+            timeline_item.audio.pan = pan_val;
+            result_parts.push(format!("pan to {}", pan_val));
+        }
+        if let Some(eq_val) = eq_enabled {
+            timeline_item.audio.eq_enabled = eq_val;
+            result_parts.push(format!("EQ enabled to {}", eq_val));
+        }
+
+        let result_msg = if result_parts.is_empty() {
+            "No audio properties changed".to_string()
+        } else {
+            format!("Set audio {} for timeline item '{}'", result_parts.join(", "), timeline_item_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "volume": volume,
+            "pan": pan,
+            "eq_enabled": eq_enabled,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn get_timeline_item_properties(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+
+        // Get timeline item
+        let timeline_item = state.timeline_items.items.get(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "timeline item not found"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Retrieved properties for timeline item '{}'", timeline_item_id),
+            "timeline_item_id": timeline_item_id,
+            "timeline_name": timeline_item.timeline_name,
+            "clip_name": timeline_item.clip_name,
+            "properties": {
+                "transform": {
+                    "pan": timeline_item.transform.pan,
+                    "tilt": timeline_item.transform.tilt,
+                    "zoom_x": timeline_item.transform.zoom_x,
+                    "zoom_y": timeline_item.transform.zoom_y,
+                    "rotation": timeline_item.transform.rotation,
+                    "anchor_point_x": timeline_item.transform.anchor_point_x,
+                    "anchor_point_y": timeline_item.transform.anchor_point_y,
+                    "pitch": timeline_item.transform.pitch,
+                    "yaw": timeline_item.transform.yaw
+                },
+                "crop": {
+                    "left": timeline_item.crop.left,
+                    "right": timeline_item.crop.right,
+                    "top": timeline_item.crop.top,
+                    "bottom": timeline_item.crop.bottom
+                },
+                "composite": {
+                    "mode": timeline_item.composite.mode,
+                    "opacity": timeline_item.composite.opacity
+                },
+                "retime": {
+                    "speed": timeline_item.retime.speed,
+                    "process": timeline_item.retime.process
+                },
+                "stabilization": {
+                    "enabled": timeline_item.stabilization.enabled,
+                    "method": timeline_item.stabilization.method,
+                    "strength": timeline_item.stabilization.strength
+                },
+                "audio": {
+                    "volume": timeline_item.audio.volume,
+                    "pan": timeline_item.audio.pan,
+                    "eq_enabled": timeline_item.audio.eq_enabled
+                }
+            },
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn reset_timeline_item_properties(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "required string"))?;
+        let property_type = args["property_type"].as_str();
+
+        // Get timeline item
+        let timeline_item = state.timeline_items.items.get_mut(timeline_item_id)
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "timeline item not found"))?;
+
+        let mut reset_parts = Vec::new();
+
+        // Reset specific property type or all if not specified
+        match property_type {
+            Some("transform") => {
+                timeline_item.transform = TransformProperties::default();
+                reset_parts.push("transform");
+            },
+            Some("crop") => {
+                timeline_item.crop = CropProperties::default();
+                reset_parts.push("crop");
+            },
+            Some("composite") => {
+                timeline_item.composite = CompositeProperties {
+                    mode: "Normal".to_string(),
+                    opacity: 1.0,
+                };
+                reset_parts.push("composite");
+            },
+            Some("retime") => {
+                timeline_item.retime = RetimeProperties {
+                    speed: 1.0,
+                    process: "NearestFrame".to_string(),
+                };
+                reset_parts.push("retime");
+            },
+            Some("stabilization") => {
+                timeline_item.stabilization = StabilizationProperties::default();
+                reset_parts.push("stabilization");
+            },
+            Some("audio") => {
+                timeline_item.audio = AudioProperties {
+                    volume: 1.0,
+                    pan: 0.0,
+                    eq_enabled: false,
+                };
+                reset_parts.push("audio");
+            },
+            Some(invalid_type) => {
+                return Err(ResolveError::invalid_parameter("property_type", 
+                    "must be transform, crop, composite, retime, stabilization, or audio"));
+            },
+            None => {
+                // Reset all properties
+                timeline_item.transform = TransformProperties::default();
+                timeline_item.crop = CropProperties::default();
+                timeline_item.composite = CompositeProperties {
+                    mode: "Normal".to_string(),
+                    opacity: 1.0,
+                };
+                timeline_item.retime = RetimeProperties {
+                    speed: 1.0,
+                    process: "NearestFrame".to_string(),
+                };
+                timeline_item.stabilization = StabilizationProperties::default();
+                timeline_item.audio = AudioProperties {
+                    volume: 1.0,
+                    pan: 0.0,
+                    eq_enabled: false,
+                };
+                reset_parts.push("all properties");
+            }
+        }
+
+        let result_msg = format!("Reset {} for timeline item '{}'", reset_parts.join(", "), timeline_item_id);
+
+        Ok(serde_json::json!({
+            "result": result_msg,
+            "timeline_item_id": timeline_item_id,
+            "property_type": property_type,
             "operation_id": Uuid::new_v4().to_string()
         }))
     }

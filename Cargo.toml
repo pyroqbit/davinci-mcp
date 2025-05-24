@@ -1,0 +1,50 @@
+[package]
+name = "davinci-mcp-rs"
+version = "2.0.0"
+edition = "2021"
+authors = ["DaVinci Resolve MCP Team"]
+description = "High-performance Rust implementation of DaVinci Resolve MCP Server"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/your-org/davinci-resolve-mcp"
+keywords = ["davinci-resolve", "mcp", "video-editing", "color-grading"]
+categories = ["multimedia", "api-bindings"]
+
+[[bin]]
+name = "davinci-mcp-server"
+path = "src/bin/server.rs"
+
+[dependencies]
+# MCP and async runtime
+rmcp = { version = "0.1", features = ["server"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Python integration
+pyo3 = { version = "0.22", features = ["auto-initialize"], optional = true }
+pythonize = { version = "0.22", optional = true }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = { version = "0.8", features = ["derive"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Additional utilities
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+toml = "0.8"
+clap = { version = "4.0", features = ["derive"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[features]
+default = ["python-bridge"]
+python-bridge = ["pyo3", "pythonize"]

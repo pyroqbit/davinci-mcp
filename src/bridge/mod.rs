@@ -497,10 +497,10 @@ impl ResolveBridge {
 
     /// Check if DaVinci Resolve is running and accessible
     async fn check_davinci_resolve_connection(&self) -> ResolveResult<()> {
-        // Try to connect to DaVinci Resolve on default port 9692
-        match tokio::net::TcpStream::connect("127.0.0.1:9692").await {
+        // Try to connect to DaVinci Resolve on port 15000 (main API port)
+        match tokio::net::TcpStream::connect("127.0.0.1:15000").await {
             Ok(_) => {
-                tracing::info!("DaVinci Resolve appears to be running (port 9692 accessible)");
+                tracing::info!("DaVinci Resolve appears to be running (port 15000 accessible)");
                 
                 // Additional check: try to import DaVinci Resolve API
                 match self.test_davinci_resolve_api().await {
@@ -512,7 +512,7 @@ impl ResolveBridge {
                 }
             },
             Err(_) => {
-                tracing::error!("Cannot connect to DaVinci Resolve on port 9692");
+                tracing::error!("Cannot connect to DaVinci Resolve on port 15000");
                 Err(ResolveError::NotRunning)
             }
         }
@@ -520,33 +520,62 @@ impl ResolveBridge {
 
     /// Test DaVinci Resolve API functionality
     async fn test_davinci_resolve_api(&self) -> ResolveResult<()> {
-        // In a real implementation, this would attempt to:
-        // 1. Import DaVinciResolveScript
-        // 2. Call resolve = dvr_script.scriptapp("Resolve")
-        // 3. Check if resolve is not None
-        
-        // For now, simulate the check
         tracing::info!("Testing DaVinci Resolve API access...");
         
-        // This would be the actual Python API test:
-        // ```python
-        // try:
-        //     import DaVinciResolveScript as dvr_script
-        //     resolve = dvr_script.scriptapp("Resolve")
-        //     if resolve is None:
-        //         raise Exception("DaVinci Resolve API not available")
-        //     return True
-        // except Exception as e:
-        //     return False
-        // ```
+        // Try to test DaVinci Resolve API via Python subprocess
+        let python_test_script = r#"
+import sys
+import os
+
+# Add DaVinci Resolve Python API path
+resolve_api_path = "/opt/resolve/Developer/Scripting/Modules"
+if resolve_api_path not in sys.path:
+    sys.path.append(resolve_api_path)
+
+try:
+    import DaVinciResolveScript as dvr_script
+    resolve = dvr_script.scriptapp("Resolve")
+    if resolve is None:
+        print("ERROR: DaVinci Resolve API not available - make sure 'External scripting using local network' is enabled")
+        sys.exit(1)
+    else:
+        print("SUCCESS: DaVinci Resolve API accessible")
+        # Test basic functionality
+        project_manager = resolve.GetProjectManager()
+        if project_manager:
+            print("SUCCESS: Project manager accessible")
+        sys.exit(0)
+except ImportError as e:
+    print(f"ERROR: Cannot import DaVinciResolveScript: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+"#;
+
+        // Execute Python test script
+        let output = tokio::process::Command::new("python3")
+            .arg("-c")
+            .arg(python_test_script)
+            .output()
+            .await
+            .map_err(|e| ResolveError::api_call("python_test", format!("Failed to execute Python test: {}", e)))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
         
-        // For pure Rust implementation, we need to either:
-        // 1. Use Python FFI to call the API
-        // 2. Use REST API if available
-        // 3. Use socket/RPC connection
-        
-        // Currently returning error to indicate real connection not implemented
-        Err(ResolveError::not_supported("Real DaVinci Resolve API connection not yet implemented"))
+        tracing::debug!("Python test output: {}", stdout);
+        if !stderr.is_empty() {
+            tracing::debug!("Python test stderr: {}", stderr);
+        }
+
+        if output.status.success() && stdout.contains("SUCCESS") {
+            tracing::info!("DaVinci Resolve API test successful");
+            Ok(())
+        } else {
+            tracing::error!("DaVinci Resolve API test failed: {}", stdout);
+            Err(ResolveError::api_call("python_test", format!("DaVinci Resolve API not accessible: {}", stdout)))
+        }
     }
 
     /// Check if bridge is connected

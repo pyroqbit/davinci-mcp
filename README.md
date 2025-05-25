@@ -4,7 +4,7 @@ A high-performance Model Context Protocol (MCP) server for DaVinci Resolve autom
 
 ## Features
 
-- **42 Professional Tools**: Complete automation suite for DaVinci Resolve
+- **48 Professional Tools**: Complete automation suite for DaVinci Resolve
 - **Pure Rust Implementation**: Fast, memory-safe, and reliable
 - **Complete DaVinci Resolve API Coverage**: All major operations supported
 - **Keyframe Animation System**: Professional-grade animation control (Phase 4 Week 2)
@@ -14,7 +14,7 @@ A high-performance Model Context Protocol (MCP) server for DaVinci Resolve autom
 - **Type Safety**: Compile-time guarantees for API correctness
 - **Comprehensive Error Handling**: Detailed error reporting and recovery
 
-## Tool Categories (42 Total)
+## Tool Categories (48 Total)
 
 ### Project & Timeline Management (11 tools)
 - Project creation, opening, and page switching
@@ -39,15 +39,22 @@ A high-performance Model Context Protocol (MCP) server for DaVinci Resolve autom
 - Retiming and stabilization settings
 - Audio properties (Volume, Pan, EQ)
 
-### Keyframe Animation System (6 tools) ✨ NEW
+### Keyframe Animation System (6 tools)
 - Add, modify, and delete keyframes
 - Interpolation control (Linear, Bezier, Ease-In/Out, Hold)
 - Keyframe mode activation (All, Color, Sizing)
 - Comprehensive keyframe inspection and management
 
+### Rendering & Delivery Operations (6 tools) ✨ NEW
+- Render queue management (add, start, clear)
+- Real-time render status monitoring
+- Project export with media packaging
+- Custom render preset creation
+- Professional delivery workflows
+
 ## Performance & Quality
 
-- **Tests**: 33 comprehensive tests (27 integration + 6 unit)
+- **Tests**: 23 comprehensive tests (17 integration + 6 unit)
 - **Performance**: O(log n) keyframe operations with binary search optimization
 - **Memory**: Optimized 64-byte keyframe representation
 - **Architecture**: Professional-grade Rust implementation with Arc<Mutex> concurrency

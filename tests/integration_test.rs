@@ -307,15 +307,102 @@ async fn test_render_operations_simulation() {
     }
 }
 
+#[tokio::test]
+async fn test_render_status_simulation() {
+    // Test render status monitoring in simulation mode
+    let server = DaVinciResolveServer::new();
+    server.initialize().await.expect("Simulation mode should always initialize");
+    
+    // Test getting render status
+    let result = server.handle_tool_call("get_render_status", None).await;
+    match result {
+        Ok(response) => {
+            println!("✅ Render status test passed: {}", response);
+            assert!(response.contains("Render status"));
+        },
+        Err(e) => {
+            panic!("❌ Render status test failed: {}", e);
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_export_project_simulation() {
+    // Test project export in simulation mode
+    let server = DaVinciResolveServer::new();
+    server.initialize().await.expect("Simulation mode should always initialize");
+    
+    // Create a project first
+    let project_args = serde_json::json!({
+        "name": "Export Test Project"
+    }).as_object().unwrap().clone();
+    
+    server.handle_tool_call("create_project", Some(project_args)).await
+        .expect("Project creation should succeed in simulation");
+    
+    // Test project export
+    let export_args = serde_json::json!({
+        "export_path": "/tmp/exported_project.drp",
+        "include_media": true,
+        "project_name": "Export Test Project"
+    }).as_object().unwrap().clone();
+    
+    let result = server.handle_tool_call("export_project", Some(export_args)).await;
+    match result {
+        Ok(response) => {
+            println!("✅ Project export test passed: {}", response);
+            assert!(response.contains("exported successfully"));
+            assert!(response.contains("exported_project.drp"));
+        },
+        Err(e) => {
+            panic!("❌ Project export test failed: {}", e);
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_create_render_preset_simulation() {
+    // Test render preset creation in simulation mode
+    let server = DaVinciResolveServer::new();
+    server.initialize().await.expect("Simulation mode should always initialize");
+    
+    // Test creating a custom render preset
+    let preset_args = serde_json::json!({
+        "preset_name": "Custom 4K H.265",
+        "format": "MP4",
+        "codec": "H.265",
+        "resolution_width": 3840,
+        "resolution_height": 2160,
+        "frame_rate": 30.0,
+        "quality": 85,
+        "audio_codec": "AAC",
+        "audio_bitrate": 192000
+    }).as_object().unwrap().clone();
+    
+    let result = server.handle_tool_call("create_render_preset", Some(preset_args)).await;
+            match result {
+            Ok(response) => {
+                println!("✅ Render preset creation test passed: {}", response);
+                assert!(response.contains("Custom 4K H.265"));
+                assert!(response.contains("H.265"));
+                // The resolution is in the JSON response, not in the result string
+                assert!(response.contains("3840") && response.contains("2160"));
+            },
+            Err(e) => {
+                panic!("❌ Render preset creation test failed: {}", e);
+            }
+        }
+}
+
 // ====================== INFORMATION DISPLAY ======================
 
 #[tokio::test]
 async fn display_test_summary() {
     println!("\n🎬 DaVinci Resolve MCP Server Test Summary");
     println!("=========================================");
-    println!("📊 Phase 4 Week 3: Rendering & Delivery Operations");
+    println!("📊 Phase 4 Week 3: Rendering & Delivery Operations COMPLETE");
     println!("🎯 Total Tools: 48 professional tools");
-    println!("🧪 Total Tests: 39 comprehensive tests");
+    println!("🧪 Total Tests: 17 integration tests");
     println!();
     println!("🔧 Connection Modes:");
     println!("  • SIMULATION: Uses in-memory state (always works)");

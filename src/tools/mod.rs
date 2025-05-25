@@ -480,6 +480,47 @@ pub struct ClearTranscriptionRequest {
     pub clip_name: String,
 }
 
+// ---- Phase 4 Week 3: Rendering & Delivery Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetRenderStatusRequest {
+    // No additional parameters needed - returns current render status
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportProjectRequest {
+    #[schemars(description = "Path to save the exported project")]
+    pub export_path: String,
+    #[schemars(description = "Whether to include media files in export")]
+    #[serde(default)]
+    pub include_media: bool,
+    #[schemars(description = "Optional custom name for the exported project")]
+    pub project_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateRenderPresetRequest {
+    #[schemars(description = "Name for the new render preset")]
+    pub preset_name: String,
+    #[schemars(description = "Output format (MP4, MOV, MXF, etc.)")]
+    pub format: String,
+    #[schemars(description = "Video codec (H.264, H.265, ProRes, etc.)")]
+    pub codec: String,
+    #[schemars(description = "Output width in pixels")]
+    pub resolution_width: u32,
+    #[schemars(description = "Output height in pixels")]
+    pub resolution_height: u32,
+    #[schemars(description = "Frame rate")]
+    pub frame_rate: f32,
+    #[schemars(description = "Quality setting (1-100)")]
+    pub quality: u32,
+    #[schemars(description = "Audio codec")]
+    #[serde(default = "default_audio_codec")]
+    pub audio_codec: String,
+    #[schemars(description = "Audio bitrate in bps (e.g., 192000 for 192kbps)")]
+    #[serde(default = "default_audio_bitrate")]
+    pub audio_bitrate: u32,
+}
+
 // Helper functions for color operations defaults
 fn default_node_type() -> String {
     "serial".to_string()
@@ -507,6 +548,14 @@ fn default_keyframe_mode() -> String {
 
 fn default_language() -> String {
     "en-US".to_string()
+}
+
+fn default_audio_codec() -> String {
+    "AAC".to_string()
+}
+
+fn default_audio_bitrate() -> u32 {
+    192000
 }
 
 // ============================================
@@ -1076,6 +1125,37 @@ pub async fn handle_tool_call(
                 "clip_name": req.clip_name
             })).await?;
             Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Phase 4 Week 3: Rendering & Delivery Operations ----
+        "get_render_status" => {
+            let response = bridge.call_api("get_render_status", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_project" => {
+            let req: ExportProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_project", serde_json::json!({
+                "export_path": req.export_path,
+                "include_media": req.include_media,
+                "project_name": req.project_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "create_render_preset" => {
+            let req: CreateRenderPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_render_preset", serde_json::json!({
+                "preset_name": req.preset_name,
+                "format": req.format,
+                "codec": req.codec,
+                "resolution_width": req.resolution_width,
+                "resolution_height": req.resolution_height,
+                "frame_rate": req.frame_rate,
+                "quality": req.quality,
+                "audio_codec": req.audio_codec,
+                "audio_bitrate": req.audio_bitrate
+            })).await?;
+            // Return full response for create_render_preset to include resolution details
+            Ok(response.to_string())
         }
 
         _ => Err(crate::error::ResolveError::ToolNotFound {

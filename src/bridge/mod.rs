@@ -627,6 +627,15 @@ impl ResolveBridge {
             "export_project" => self.export_project(&mut state, args).await,
             "create_render_preset" => self.create_render_preset(&mut state, args).await,
 
+            // Project Management Operations
+            "save_project" => self.save_project(&mut state, args).await,
+            "close_project" => self.close_project(&mut state, args).await,
+            "set_project_setting" => self.set_project_setting(&mut state, args).await,
+
+            // Audio Transcription Operations
+            "transcribe_audio" => self.transcribe_audio(&mut state, args).await,
+            "clear_transcription" => self.clear_transcription(&mut state, args).await,
+
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
     }
@@ -2490,6 +2499,96 @@ impl ResolveBridge {
             "audio_codec": audio_codec,
             "audio_bitrate": audio_bitrate,
             "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    // ---- Project Management Operations ----
+    async fn save_project(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        if state.current_project.is_none() {
+            return Err(ResolveError::NotRunning);
+        }
+
+        let project_name = state.current_project.as_ref().unwrap();
+        
+        // Simulate save operation
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        Ok(serde_json::json!({
+            "result": format!("Saved project '{}'", project_name),
+            "operation_id": Uuid::new_v4().to_string(),
+            "save_time": chrono::Utc::now().to_rfc3339()
+        }))
+    }
+
+    async fn close_project(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        if state.current_project.is_none() {
+            return Err(ResolveError::NotRunning);
+        }
+
+        let project_name = state.current_project.take().unwrap();
+        
+        // Reset project state
+        state.current_timeline = None;
+        state.timelines.clear();
+        state.media_pool.bins.clear();
+        state.media_pool.clips.clear();
+        state.color_state.current_clip = None;
+        state.color_state.clip_grades.clear();
+        state.timeline_items.items.clear();
+        state.keyframe_state.timeline_item_keyframes.clear();
+        state.render_state.render_queue.clear();
+        state.render_state.active_renders.clear();
+
+        Ok(serde_json::json!({
+            "result": format!("Closed project '{}'", project_name),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn set_project_setting(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        if state.current_project.is_none() {
+            return Err(ResolveError::NotRunning);
+        }
+
+        let setting_name = args["setting_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("setting_name", "required string"))?;
+        let setting_value = &args["setting_value"];
+
+        Ok(serde_json::json!({
+            "result": format!("Set project setting '{}' to {:?}", setting_name, setting_value),
+            "operation_id": Uuid::new_v4().to_string(),
+            "setting_name": setting_name,
+            "setting_value": setting_value
+        }))
+    }
+
+    // ---- Audio Transcription Operations ----
+    async fn transcribe_audio(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "required string"))?;
+        let language = args["language"].as_str().unwrap_or("en-US");
+
+        // Simulate transcription processing
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        Ok(serde_json::json!({
+            "result": format!("Started transcription for clip '{}' in language '{}'", clip_name, language),
+            "transcription_id": Uuid::new_v4().to_string(),
+            "clip_name": clip_name,
+            "language": language,
+            "estimated_duration": "45s",
+            "status": "processing"
+        }))
+    }
+
+    async fn clear_transcription(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "required string"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Cleared transcription for clip '{}'", clip_name),
+            "operation_id": Uuid::new_v4().to_string(),
+            "clip_name": clip_name
         }))
     }
 }

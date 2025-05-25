@@ -1,17 +1,12 @@
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use serde_json::{json, Value};
-
 use rmcp::{
-    model::{
-        CallToolResult, ClientNotification, ClientRequest, Content, Implementation,
-        InitializeResult, ListToolsResult, ProtocolVersion, ServerCapabilities,
-        Tool, CallToolRequestParam, ServerResult
-    },
-    service::{RequestContext, Service},
-    Error as McpError, RoleServer,
+    model::{CallToolResult, Content, ServerCapabilities, Implementation,
+           InitializeResult, ProtocolVersion, ListToolsResult, CallToolRequestParam,
+           ClientRequest, ClientNotification, ServerResult, Tool, ErrorData, CallToolRequestMethod},
+    Service,
+    service::{RoleServer, RequestContext},
 };
-
 use crate::{
     bridge::{ResolveBridge, ConnectionMode},
     config::Config,
@@ -61,14 +56,13 @@ impl DaVinciResolveServer {
 
     /// Initialize the server and DaVinci Resolve connection
     pub async fn initialize(&self) -> Result<(), ResolveError> {
-        let mut initialized = self.initialized.write().await;
+        let mut initialized = self.initialized.write().unwrap();
         if *initialized {
             return Ok(());
         }
 
-        // Initialize Python bridge
+        // Initialize the bridge
         self.bridge.initialize().await?;
-
         *initialized = true;
         Ok(())
     }
@@ -1171,6 +1165,81 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // ==================== PROJECT MANAGEMENT OPERATIONS ====================
+            Tool::new(
+                "save_project",
+                "Save the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "close_project",
+                "Close the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_project_setting",
+                "Set a project setting to the specified value",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "setting_name": {
+                            "type": "string",
+                            "description": "The name of the setting to change"
+                        },
+                        "setting_value": {
+                            "description": "The new value for the setting (can be string, integer, float, or boolean)"
+                        }
+                    },
+                    "required": ["setting_name", "setting_value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== AUDIO TRANSCRIPTION OPERATIONS ====================
+            Tool::new(
+                "transcribe_audio",
+                "Transcribe audio for a clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to transcribe"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Language code for transcription (default: en-US)",
+                            "default": "en-US"
+                        }
+                    },
+                    "required": ["clip_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "clear_transcription",
+                "Clear audio transcription for a clip",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to clear transcription from"
+                        }
+                    },
+                    "required": ["clip_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -1180,7 +1249,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
         &self,
         request: ClientRequest,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ServerResult, McpError> {
+    ) -> Result<ServerResult, ErrorData> {
         match request {
             ClientRequest::InitializeRequest(_) => {
                 // Handle initialization
@@ -1211,7 +1280,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
             }
             _ => {
                 // Create a proper method not found error
-                Err(McpError::method_not_found::<rmcp::model::JsonRpcVersion2_0>())
+                Err(ErrorData::method_not_found::<CallToolRequestMethod>())
             }
         }
     }
@@ -1219,7 +1288,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
     async fn handle_notification(
         &self,
         _notification: ClientNotification,
-    ) -> Result<(), McpError> {
+    ) -> Result<(), ErrorData> {
         // Handle notifications if needed
         Ok(())
     }
@@ -1228,14 +1297,16 @@ impl Service<RoleServer> for DaVinciResolveServer {
         InitializeResult {
             protocol_version: ProtocolVersion::LATEST,
             capabilities: ServerCapabilities {
-                tools: Some(Default::default()),
+                tools: Some(rmcp::model::ToolsCapability {
+                    list_changed: None,
+                }),
                 ..Default::default()
             },
             server_info: Implementation {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 42 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, and professional timeline item manipulation".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 47 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, professional timeline item manipulation, render & delivery operations, and audio transcription".to_string()),
         }
     }
 }

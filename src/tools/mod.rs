@@ -423,6 +423,63 @@ pub struct GetKeyframesRequest {
     pub property_name: Option<String>,
 }
 
+// ---- Render and Delivery Operations (Phase 4 Week 3) ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddToRenderQueueRequest {
+    #[schemars(description = "Name of the render preset to use")]
+    pub preset_name: String,
+    #[schemars(description = "Name of the timeline to render (uses current if None)")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Whether to render only the in/out range instead of entire timeline")]
+    #[serde(default)]
+    pub use_in_out_range: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StartRenderRequest {
+    // No additional parameters needed - starts all queued jobs
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClearRenderQueueRequest {
+    // No additional parameters needed - clears all jobs from queue
+}
+
+// ---- Project Management Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SaveProjectRequest {
+    // No additional parameters needed - saves current project
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CloseProjectRequest {
+    // No additional parameters needed - closes current project
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetProjectSettingRequest {
+    #[schemars(description = "The name of the setting to change")]
+    pub setting_name: String,
+    #[schemars(description = "The new value for the setting (can be string, integer, float, or boolean)")]
+    pub setting_value: serde_json::Value,
+}
+
+// ---- Audio Transcription Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TranscribeAudioRequest {
+    #[schemars(description = "Name of the clip to transcribe")]
+    pub clip_name: String,
+    #[schemars(description = "Language code for transcription (default: en-US)")]
+    #[serde(default = "default_language")]
+    pub language: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClearTranscriptionRequest {
+    #[schemars(description = "Name of the clip to clear transcription from")]
+    pub clip_name: String,
+}
+
 // Helper functions for color operations defaults
 fn default_node_type() -> String {
     "serial".to_string()
@@ -446,6 +503,10 @@ fn default_lut_size() -> String {
 
 fn default_keyframe_mode() -> String {
     "All".to_string()
+}
+
+fn default_language() -> String {
+    "en-US".to_string()
 }
 
 // ============================================
@@ -959,6 +1020,60 @@ pub async fn handle_tool_call(
             let response = bridge.call_api("get_keyframes", serde_json::json!({
                 "timeline_item_id": req.timeline_item_id,
                 "property_name": req.property_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Render and Delivery Operations (Phase 4 Week 3) ----
+        "add_to_render_queue" => {
+            let req: AddToRenderQueueRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_to_render_queue", serde_json::json!({
+                "preset_name": req.preset_name,
+                "timeline_name": req.timeline_name,
+                "use_in_out_range": req.use_in_out_range
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "start_render" => {
+            let response = bridge.call_api("start_render", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "clear_render_queue" => {
+            let response = bridge.call_api("clear_render_queue", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Project Management Operations ----
+        "save_project" => {
+            let response = bridge.call_api("save_project", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "close_project" => {
+            let response = bridge.call_api("close_project", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_project_setting" => {
+            let req: SetProjectSettingRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_project_setting", serde_json::json!({
+                "setting_name": req.setting_name,
+                "setting_value": req.setting_value
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- Audio Transcription Operations ----
+        "transcribe_audio" => {
+            let req: TranscribeAudioRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("transcribe_audio", serde_json::json!({
+                "clip_name": req.clip_name,
+                "language": req.language
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "clear_transcription" => {
+            let req: ClearTranscriptionRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("clear_transcription", serde_json::json!({
+                "clip_name": req.clip_name
             })).await?;
             Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }

@@ -1,6 +1,6 @@
 [package]
 name = "davinci-mcp-rs"
-version = "2.0.0"
+version = "0.1.0"
 edition = "2021"
 authors = ["DaVinci Resolve MCP Team"]
 description = "High-performance MCP server for DaVinci Resolve automation"
@@ -13,6 +13,10 @@ categories = ["multimedia::video", "api-bindings"]
 [[bin]]
 name = "davinci-mcp-server"
 path = "src/bin/server.rs"
+
+[[bin]]
+name = "test-native"
+path = "src/bin/test_native.rs"
 
 [dependencies]
 # MCP Protocol
@@ -44,6 +48,14 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # File system operations
 walkdir = "2.0"
+
+# FFI and native integration
+libc = "0.2"
+libloading = "0.8"
+bindgen = "0.69"
+
+# System integration
+nix = "0.27"
 
 [dev-dependencies]
 tokio-test = "0.4"

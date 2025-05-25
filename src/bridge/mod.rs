@@ -5,6 +5,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::error::{ResolveError, ResolveResult};
+use crate::native::NativeDaVinciResolve;
 
 /// Connection mode for DaVinci Resolve bridge
 #[derive(Debug, Clone, PartialEq)]
@@ -25,6 +26,8 @@ pub struct ResolveBridge {
     state: Arc<Mutex<ResolveState>>,
     /// Connection status
     connected: Arc<Mutex<bool>>,
+    /// Native DaVinci Resolve integration
+    native: Arc<Mutex<Option<NativeDaVinciResolve>>>,
 }
 
 #[derive(Debug, Default)]
@@ -466,6 +469,7 @@ impl ResolveBridge {
             mode,
             state: Arc::new(Mutex::new(state)),
             connected: Arc::new(Mutex::new(false)),
+            native: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -479,14 +483,41 @@ impl ResolveBridge {
             },
             ConnectionMode::Real => {
                 tracing::info!("Attempting to connect to real DaVinci Resolve instance...");
+                
+                // Try native integration first
+                let mut native_guard = self.native.lock().await;
+                let mut native_resolve = NativeDaVinciResolve::new();
+                
+                match native_resolve.initialize() {
+                    Ok(()) => {
+                        tracing::info!("🚀 Native DaVinci Resolve integration available!");
+                        match native_resolve.connect() {
+                            Ok(()) => {
+                                tracing::info!("✅ Native connection established successfully");
+                                *native_guard = Some(native_resolve);
+                                *self.connected.lock().await = true;
+                                return Ok(());
+                            },
+                            Err(e) => {
+                                tracing::warn!("⚠️ Native connection failed: {}, falling back to Python", e);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("⚠️ Native integration not available: {}, falling back to Python", e);
+                    }
+                }
+                drop(native_guard);
+                
+                // Fallback to Python integration
                 match self.check_davinci_resolve_connection().await {
                     Ok(()) => {
-                        tracing::info!("Successfully connected to DaVinci Resolve");
+                        tracing::info!("🐍 Successfully connected to DaVinci Resolve via Python");
                         *self.connected.lock().await = true;
                         Ok(())
                     },
                     Err(e) => {
-                        tracing::error!("Failed to connect to DaVinci Resolve: {}", e);
+                        tracing::error!("❌ Failed to connect to DaVinci Resolve: {}", e);
                         *self.connected.lock().await = false;
                         Err(e)
                     }

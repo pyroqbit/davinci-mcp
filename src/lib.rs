@@ -1,6 +1,7 @@
 pub mod config;
 pub mod error;
 pub mod bridge;
+pub mod native;
 pub mod server;
 pub mod tools;
 

@@ -6,12 +6,25 @@ use uuid::Uuid;
 
 use crate::error::{ResolveError, ResolveResult};
 
+/// Connection mode for DaVinci Resolve bridge
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConnectionMode {
+    /// Simulation mode - uses in-memory state (for testing/development)
+    Simulation,
+    /// Real mode - attempts to connect to actual DaVinci Resolve instance
+    Real,
+}
+
 /// Pure Rust implementation of DaVinci Resolve operations
-/// This replaces the Python bridge with native Rust code for better performance
+/// This can operate in simulation mode or attempt real connections
 #[derive(Debug)]
 pub struct ResolveBridge {
+    /// Connection mode
+    mode: ConnectionMode,
     /// Simulated state for development and testing
     state: Arc<Mutex<ResolveState>>,
+    /// Connection status
+    connected: Arc<Mutex<bool>>,
 }
 
 #[derive(Debug, Default)]
@@ -36,6 +49,8 @@ struct ResolveState {
     timeline_items: TimelineItemsState,
     /// Keyframe animation state (Phase 4 Week 2)
     keyframe_state: KeyframeState,
+    /// Render and delivery state (Phase 4 Week 3)
+    render_state: RenderState,
 }
 
 /// Keyframe animation state management (Phase 4 Week 2)
@@ -50,6 +65,7 @@ struct KeyframeState {
 #[derive(Debug, Clone, Default)]
 struct TimelineItemKeyframes {
     /// Timeline item ID
+    #[allow(dead_code)]
     timeline_item_id: String,
     /// Keyframes by property name
     property_keyframes: HashMap<String, Vec<Keyframe>>,
@@ -92,17 +108,24 @@ struct KeyframeModes {
 
 #[derive(Debug, Clone)]
 struct Timeline {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     frame_rate: Option<String>,
+    #[allow(dead_code)]
     resolution_width: Option<i32>,
+    #[allow(dead_code)]
     resolution_height: Option<i32>,
     markers: Vec<Marker>,
 }
 
 #[derive(Debug, Clone)]
 struct Marker {
+    #[allow(dead_code)]
     frame: Option<i32>,
+    #[allow(dead_code)]
     color: String,
+    #[allow(dead_code)]
     note: String,
 }
 
@@ -114,16 +137,23 @@ struct MediaPool {
 
 #[derive(Debug, Clone)]
 struct Bin {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     clips: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 struct Clip {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     file_path: String,
+    #[allow(dead_code)]
     bin: Option<String>,
+    #[allow(dead_code)]
     linked: bool,
+    #[allow(dead_code)]
     proxy_path: Option<String>,
 }
 
@@ -154,6 +184,7 @@ struct TimelineItemsState {
 #[derive(Debug, Clone, Default)]
 struct TimelineItemState {
     /// Unique timeline item ID
+    #[allow(dead_code)]
     id: String,
     /// Timeline name this item belongs to
     timeline_name: String,
@@ -222,16 +253,22 @@ struct AudioProperties {
 
 #[derive(Debug, Clone)]
 struct LutInfo {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     path: String,
+    #[allow(dead_code)]
     format: String, // "Cube", "Davinci", "3dl", "Panasonic"
+    #[allow(dead_code)]
     size: String,   // "17Point", "33Point", "65Point"
 }
 
 #[derive(Debug, Clone)]
 struct ColorPreset {
     name: String,
+    #[allow(dead_code)]
     album: String,
+    #[allow(dead_code)]
     created_at: String,
     grade_data: ClipGrade,
 }
@@ -259,9 +296,144 @@ struct ColorWheelParams {
     master: f64,
 }
 
+/// Render and delivery state management (Phase 4 Week 3)
+#[derive(Debug, Default)]
+struct RenderState {
+    /// Active render queue
+    render_queue: Vec<RenderJob>,
+    /// Active render progress tracking
+    active_renders: HashMap<String, RenderProgress>,
+    /// Available render presets
+    render_presets: HashMap<String, RenderPreset>,
+    /// Render job history
+    render_history: Vec<RenderResult>,
+    /// Global render job counter
+    job_counter: u64,
+}
+
+#[derive(Debug, Clone)]
+struct RenderJob {
+    /// Unique job ID
+    id: String,
+    /// Timeline name to render
+    timeline_name: String,
+    /// Render preset name
+    preset_name: String,
+    /// Output file path
+    output_path: String,
+    /// Use in/out range
+    use_in_out_range: bool,
+    /// Job creation timestamp
+    #[allow(dead_code)]
+    created_at: chrono::DateTime<chrono::Utc>,
+    /// Current job status
+    status: RenderJobStatus,
+}
+
+#[derive(Debug, Clone)]
+enum RenderJobStatus {
+    Queued,
+    Rendering,
+    #[allow(dead_code)]
+    Completed,
+    #[allow(dead_code)]
+    Failed,
+    #[allow(dead_code)]
+    Cancelled,
+}
+
+#[derive(Debug, Clone)]
+struct RenderProgress {
+    /// Job ID being tracked
+    job_id: String,
+    /// Progress percentage (0.0 to 100.0)
+    progress_percent: f32,
+    /// Estimated time remaining
+    estimated_time_remaining: Option<std::time::Duration>,
+    /// Current frame being rendered
+    current_frame: u32,
+    /// Total frames to render
+    total_frames: u32,
+    /// Current status message
+    status_message: String,
+    /// Last update timestamp
+    #[allow(dead_code)]
+    last_update: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone)]
+struct RenderPreset {
+    /// Preset name
+    #[allow(dead_code)]
+    name: String,
+    /// Output format (MP4, MOV, MXF, etc.)
+    #[allow(dead_code)]
+    format: String,
+    /// Video codec (H.264, H.265, ProRes, etc.)
+    #[allow(dead_code)]
+    codec: String,
+    /// Output resolution
+    #[allow(dead_code)]
+    resolution: (u32, u32),
+    /// Frame rate
+    #[allow(dead_code)]
+    frame_rate: f32,
+    /// Quality setting
+    #[allow(dead_code)]
+    quality: RenderQuality,
+    /// Audio codec
+    #[allow(dead_code)]
+    audio_codec: String,
+    /// Audio bitrate (kbps)
+    #[allow(dead_code)]
+    audio_bitrate: u32,
+    /// Preset creation timestamp
+    #[allow(dead_code)]
+    created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone)]
+enum RenderQuality {
+    #[allow(dead_code)]
+    Low,
+    #[allow(dead_code)]
+    Medium,
+    High,
+    #[allow(dead_code)]
+    Custom(u32), // Custom bitrate in kbps
+}
+
+#[derive(Debug, Clone)]
+struct RenderResult {
+    /// Job ID
+    #[allow(dead_code)]
+    job_id: String,
+    /// Timeline name
+    #[allow(dead_code)]
+    timeline_name: String,
+    /// Preset used
+    #[allow(dead_code)]
+    preset_name: String,
+    /// Output path
+    #[allow(dead_code)]
+    output_path: String,
+    /// Render duration
+    #[allow(dead_code)]
+    render_duration: std::time::Duration,
+    /// Final status
+    #[allow(dead_code)]
+    status: RenderJobStatus,
+    /// Completion timestamp
+    #[allow(dead_code)]
+    completed_at: chrono::DateTime<chrono::Utc>,
+    /// Error message (if failed)
+    #[allow(dead_code)]
+    error_message: Option<String>,
+}
+
 impl ResolveBridge {
     /// Create a new bridge instance
-    pub fn new() -> Self {
+    pub fn new(mode: ConnectionMode) -> Self {
         let mut state = ResolveState::default();
         state.current_page = "media".to_string();
         
@@ -287,14 +459,100 @@ impl ResolveBridge {
         });
 
         Self {
+            mode,
             state: Arc::new(Mutex::new(state)),
+            connected: Arc::new(Mutex::new(false)),
         }
     }
 
-    /// Initialize the bridge (no-op for pure Rust implementation)
+    /// Initialize the bridge with real or simulation connection
     pub async fn initialize(&self) -> ResolveResult<()> {
-        tracing::info!("Initialized pure Rust DaVinci Resolve bridge");
-        Ok(())
+        match self.mode {
+            ConnectionMode::Simulation => {
+                tracing::info!("Initialized DaVinci Resolve bridge in SIMULATION mode");
+                *self.connected.lock().await = true;
+                Ok(())
+            },
+            ConnectionMode::Real => {
+                tracing::info!("Attempting to connect to real DaVinci Resolve instance...");
+                match self.check_davinci_resolve_connection().await {
+                    Ok(()) => {
+                        tracing::info!("Successfully connected to DaVinci Resolve");
+                        *self.connected.lock().await = true;
+                        Ok(())
+                    },
+                    Err(e) => {
+                        tracing::error!("Failed to connect to DaVinci Resolve: {}", e);
+                        *self.connected.lock().await = false;
+                        Err(e)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check if DaVinci Resolve is running and accessible
+    async fn check_davinci_resolve_connection(&self) -> ResolveResult<()> {
+        // Try to connect to DaVinci Resolve on default port 9692
+        match tokio::net::TcpStream::connect("127.0.0.1:9692").await {
+            Ok(_) => {
+                tracing::info!("DaVinci Resolve appears to be running (port 9692 accessible)");
+                
+                // Additional check: try to import DaVinci Resolve API
+                match self.test_davinci_resolve_api().await {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        tracing::warn!("DaVinci Resolve API test failed: {}", e);
+                        Err(ResolveError::NotRunning)
+                    }
+                }
+            },
+            Err(_) => {
+                tracing::error!("Cannot connect to DaVinci Resolve on port 9692");
+                Err(ResolveError::NotRunning)
+            }
+        }
+    }
+
+    /// Test DaVinci Resolve API functionality
+    async fn test_davinci_resolve_api(&self) -> ResolveResult<()> {
+        // In a real implementation, this would attempt to:
+        // 1. Import DaVinciResolveScript
+        // 2. Call resolve = dvr_script.scriptapp("Resolve")
+        // 3. Check if resolve is not None
+        
+        // For now, simulate the check
+        tracing::info!("Testing DaVinci Resolve API access...");
+        
+        // This would be the actual Python API test:
+        // ```python
+        // try:
+        //     import DaVinciResolveScript as dvr_script
+        //     resolve = dvr_script.scriptapp("Resolve")
+        //     if resolve is None:
+        //         raise Exception("DaVinci Resolve API not available")
+        //     return True
+        // except Exception as e:
+        //     return False
+        // ```
+        
+        // For pure Rust implementation, we need to either:
+        // 1. Use Python FFI to call the API
+        // 2. Use REST API if available
+        // 3. Use socket/RPC connection
+        
+        // Currently returning error to indicate real connection not implemented
+        Err(ResolveError::not_supported("Real DaVinci Resolve API connection not yet implemented"))
+    }
+
+    /// Check if bridge is connected
+    pub async fn is_connected(&self) -> bool {
+        *self.connected.lock().await
+    }
+
+    /// Get connection mode
+    pub fn get_mode(&self) -> ConnectionMode {
+        self.mode.clone()
     }
 
     /// Call a DaVinci Resolve API method
@@ -360,6 +618,14 @@ impl ResolveBridge {
             "set_keyframe_interpolation" => self.set_keyframe_interpolation(&mut state, args).await,
             "enable_keyframes" => self.enable_keyframes(&mut state, args).await,
             "get_keyframes" => self.get_keyframes(&mut state, args).await,
+
+            // Render & Delivery Operations (Phase 4 Week 3)
+            "add_to_render_queue" => self.add_to_render_queue(&mut state, args).await,
+            "start_render" => self.start_render(&mut state, args).await,
+            "clear_render_queue" => self.clear_render_queue(&mut state, args).await,
+            "get_render_status" => self.get_render_status(&mut state, args).await,
+            "export_project" => self.export_project(&mut state, args).await,
+            "create_render_preset" => self.create_render_preset(&mut state, args).await,
 
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
@@ -542,7 +808,7 @@ impl ResolveBridge {
         }))
     }
 
-    async fn auto_sync_audio(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+    async fn auto_sync_audio(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
         let clip_names = args["clip_names"].as_array()
             .ok_or_else(|| ResolveError::invalid_parameter("clip_names", "required array"))?;
         
@@ -1549,7 +1815,7 @@ impl ResolveBridge {
                 };
                 reset_parts.push("audio");
             },
-            Some(invalid_type) => {
+            Some(_invalid_type) => {
                 return Err(ResolveError::invalid_parameter("property_type", 
                     "must be transform, crop, composite, retime, stabilization, or audio"));
             },
@@ -1934,11 +2200,303 @@ impl ResolveBridge {
 
         Ok(result)
     }
+
+    // ==================== RENDER & DELIVERY OPERATIONS (Phase 4 Week 3) ====================
+
+    async fn add_to_render_queue(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "required string"))?;
+        let timeline_name = args["timeline_name"].as_str()
+            .unwrap_or_else(|| state.current_timeline.as_ref().map(|s| s.as_str()).unwrap_or("Timeline 1"));
+        let use_in_out_range = args["use_in_out_range"].as_bool().unwrap_or(false);
+
+        // Validate timeline exists
+        if !state.timelines.contains_key(timeline_name) {
+            return Err(ResolveError::TimelineNotFound { name: timeline_name.to_string() });
+        }
+
+        // Initialize default presets if none exist
+        if state.render_state.render_presets.is_empty() {
+            let default_preset = RenderPreset {
+                name: "H.264 1080p".to_string(),
+                format: "MP4".to_string(),
+                codec: "H.264".to_string(),
+                resolution: (1920, 1080),
+                frame_rate: 24.0,
+                quality: RenderQuality::High,
+                audio_codec: "AAC".to_string(),
+                audio_bitrate: 192,
+                created_at: chrono::Utc::now(),
+            };
+            state.render_state.render_presets.insert("H.264 1080p".to_string(), default_preset);
+        }
+
+        // Validate preset exists
+        if !state.render_state.render_presets.contains_key(preset_name) {
+            return Err(ResolveError::PresetNotFound { name: preset_name.to_string() });
+        }
+
+        // Generate job ID and output path
+        state.render_state.job_counter += 1;
+        let job_id = format!("job_{}", state.render_state.job_counter);
+        let output_path = format!("/tmp/renders/{}_{}.mp4", timeline_name, job_id);
+
+        // Create render job
+        let render_job = RenderJob {
+            id: job_id.clone(),
+            timeline_name: timeline_name.to_string(),
+            preset_name: preset_name.to_string(),
+            output_path: output_path.clone(),
+            use_in_out_range,
+            created_at: chrono::Utc::now(),
+            status: RenderJobStatus::Queued,
+        };
+
+        // Add to queue
+        state.render_state.render_queue.push(render_job);
+
+        Ok(serde_json::json!({
+            "result": format!("Added timeline '{}' to render queue with preset '{}'", timeline_name, preset_name),
+            "job_id": job_id,
+            "timeline_name": timeline_name,
+            "preset_name": preset_name,
+            "output_path": output_path,
+            "use_in_out_range": use_in_out_range,
+            "queue_position": state.render_state.render_queue.len(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn start_render(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        if state.render_state.render_queue.is_empty() {
+            return Err(ResolveError::invalid_parameter("render_queue", "no jobs in queue"));
+        }
+
+        let mut started_jobs = Vec::new();
+        let now = chrono::Utc::now();
+
+        // Process all queued jobs
+        for job in &mut state.render_state.render_queue {
+            if matches!(job.status, RenderJobStatus::Queued) {
+                job.status = RenderJobStatus::Rendering;
+                
+                // Create render progress tracking
+                let progress = RenderProgress {
+                    job_id: job.id.clone(),
+                    progress_percent: 0.0,
+                    estimated_time_remaining: Some(std::time::Duration::from_secs(120)),
+                    current_frame: 0,
+                    total_frames: 1000, // Simulated frame count
+                    status_message: "Starting render...".to_string(),
+                    last_update: now,
+                };
+
+                state.render_state.active_renders.insert(job.id.clone(), progress);
+                started_jobs.push(job.id.clone());
+            }
+        }
+
+        if started_jobs.is_empty() {
+            return Err(ResolveError::invalid_parameter("render_queue", "no queued jobs to start"));
+        }
+
+        tracing::info!("Started {} render jobs", started_jobs.len());
+
+        Ok(serde_json::json!({
+            "result": format!("Started {} render jobs", started_jobs.len()),
+            "started_jobs": started_jobs,
+            "total_active_renders": state.render_state.active_renders.len(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn clear_render_queue(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        let queue_size = state.render_state.render_queue.len();
+        let active_renders = state.render_state.active_renders.len();
+
+        // Clear render queue and active renders
+        state.render_state.render_queue.clear();
+        state.render_state.active_renders.clear();
+
+        tracing::info!("Cleared render queue ({} jobs) and active renders ({} jobs)", queue_size, active_renders);
+
+        Ok(serde_json::json!({
+            "result": format!("Cleared render queue ({} jobs) and stopped {} active renders", queue_size, active_renders),
+            "cleared_queue_jobs": queue_size,
+            "stopped_active_renders": active_renders,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn get_render_status(&self, state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        let queue_size = state.render_state.render_queue.len();
+        let active_renders = state.render_state.active_renders.len();
+        let completed_renders = state.render_state.render_history.len();
+
+        // Collect active render details
+        let active_render_details: Vec<_> = state.render_state.active_renders.values()
+            .map(|progress| serde_json::json!({
+                "job_id": progress.job_id,
+                "progress_percent": progress.progress_percent,
+                "current_frame": progress.current_frame,
+                "total_frames": progress.total_frames,
+                "status_message": progress.status_message,
+                "estimated_time_remaining_seconds": progress.estimated_time_remaining.map(|d| d.as_secs())
+            }))
+            .collect();
+
+        // Collect queued job details
+        let queued_job_details: Vec<_> = state.render_state.render_queue.iter()
+            .filter(|job| matches!(job.status, RenderJobStatus::Queued))
+            .map(|job| serde_json::json!({
+                "job_id": job.id,
+                "timeline_name": job.timeline_name,
+                "preset_name": job.preset_name,
+                "output_path": job.output_path,
+                "use_in_out_range": job.use_in_out_range
+            }))
+            .collect();
+
+        Ok(serde_json::json!({
+            "result": format!("Render status: {} queued, {} active, {} completed", queue_size, active_renders, completed_renders),
+            "queued_jobs": queued_job_details.len(),
+            "active_renders": active_render_details.len(),
+            "completed_renders": completed_renders,
+            "queued_job_details": queued_job_details,
+            "active_render_details": active_render_details,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn export_project(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let export_path = args["export_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("export_path", "required string"))?;
+        let include_media = args["include_media"].as_bool().unwrap_or(false);
+        let project_name = args["project_name"].as_str()
+            .unwrap_or_else(|| state.current_project.as_ref().map(|s| s.as_str()).unwrap_or("Unknown Project"));
+
+        // Validate current project exists
+        if state.current_project.is_none() {
+            return Err(ResolveError::invalid_parameter("project", "no project currently open"));
+        }
+
+        // Validate export path
+        if export_path.is_empty() {
+            return Err(ResolveError::invalid_parameter("export_path", "cannot be empty"));
+        }
+
+        tracing::info!("Exporting project '{}' to '{}'", project_name, export_path);
+
+        // Simulate export process
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Simulate export file size
+        let timeline_count = state.timelines.len();
+        let media_count = state.media_pool.clips.len();
+        let estimated_size_mb = if include_media { 500 + media_count * 50 } else { 50 + timeline_count * 10 };
+
+        Ok(serde_json::json!({
+            "result": format!("Project '{}' exported successfully to '{}'", project_name, export_path),
+            "project_name": project_name,
+            "export_path": export_path,
+            "include_media": include_media,
+            "timeline_count": timeline_count,
+            "media_count": media_count,
+            "estimated_size_mb": estimated_size_mb,
+            "export_timestamp": chrono::Utc::now().to_rfc3339(),
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
+
+    async fn create_render_preset(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "required string"))?;
+        let format = args["format"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("format", "required string"))?;
+        let codec = args["codec"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("codec", "required string"))?;
+        let resolution = (
+            args["resolution_width"].as_i64().unwrap() as u32,
+            args["resolution_height"].as_i64().unwrap() as u32
+        );
+        let frame_rate = args["frame_rate"].as_f64().unwrap() as f32;
+        let quality = args["quality"].as_u64().unwrap() as u32;
+        let audio_codec = args["audio_codec"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("audio_codec", "required string"))?;
+        let audio_bitrate = args["audio_bitrate"].as_u64().unwrap() as u32;
+
+        // Validate format
+        let valid_formats = vec!["MP4", "MOV", "MXF"];
+        if !valid_formats.contains(&format) {
+            return Err(ResolveError::invalid_parameter("format", "invalid format"));
+        }
+
+        // Validate codec
+        let valid_codecs = vec!["H.264", "H.265", "ProRes"];
+        if !valid_codecs.contains(&codec) {
+            return Err(ResolveError::invalid_parameter("codec", "invalid codec"));
+        }
+
+        // Validate resolution
+        if resolution.0 < 1920 || resolution.1 < 1080 {
+            return Err(ResolveError::invalid_parameter("resolution", "must be at least 1920x1080"));
+        }
+
+        // Validate frame rate
+        if frame_rate < 24.0 || frame_rate > 60.0 {
+            return Err(ResolveError::invalid_parameter("frame_rate", "must be between 24.0 and 60.0"));
+        }
+
+        // Validate quality
+        if quality < 1 || quality > 100 {
+            return Err(ResolveError::invalid_parameter("quality", "must be between 1 and 100"));
+        }
+
+        // Validate audio codec
+        let valid_audio_codecs = vec!["AAC", "ProRes"];
+        if !valid_audio_codecs.contains(&audio_codec) {
+            return Err(ResolveError::invalid_parameter("audio_codec", "invalid audio codec"));
+        }
+
+        // Validate audio bitrate
+        if audio_bitrate < 64000 || audio_bitrate > 192000 {
+            return Err(ResolveError::invalid_parameter("audio_bitrate", "must be between 64kbps and 192kbps"));
+        }
+
+        // Create new render preset
+        let render_preset = RenderPreset {
+            name: preset_name.to_string(),
+            format: format.to_string(),
+            codec: codec.to_string(),
+            resolution,
+            frame_rate,
+            quality: RenderQuality::Custom(quality),
+            audio_codec: audio_codec.to_string(),
+            audio_bitrate,
+            created_at: chrono::Utc::now(),
+        };
+
+        // Add preset to render presets
+        state.render_state.render_presets.insert(preset_name.to_string(), render_preset);
+
+        Ok(serde_json::json!({
+            "result": format!("Created render preset '{}'", preset_name),
+            "preset_name": preset_name,
+            "format": format,
+            "codec": codec,
+            "resolution": format!("{}x{}", resolution.0, resolution.1),
+            "frame_rate": frame_rate,
+            "quality": quality,
+            "audio_codec": audio_codec,
+            "audio_bitrate": audio_bitrate,
+            "operation_id": Uuid::new_v4().to_string()
+        }))
+    }
 }
 
 impl Default for ResolveBridge {
     fn default() -> Self {
-        Self::new()
+        Self::new(ConnectionMode::Simulation)
     }
 }
 

@@ -13,7 +13,7 @@ use rmcp::{
 };
 
 use crate::{
-    bridge::ResolveBridge,
+    bridge::{ResolveBridge, ConnectionMode},
     config::Config,
     error::ResolveError,
     tools::{handle_tool_call},
@@ -23,6 +23,7 @@ use crate::{
 #[derive(Debug)]
 pub struct DaVinciResolveServer {
     /// Configuration
+    #[allow(dead_code)]
     config: Arc<Config>,
     /// Python bridge to DaVinci Resolve
     bridge: Arc<ResolveBridge>,
@@ -31,15 +32,26 @@ pub struct DaVinciResolveServer {
 }
 
 impl DaVinciResolveServer {
-    /// Create a new server instance with default configuration
+    /// Create a new server instance with default configuration (simulation mode)
     pub fn new() -> Self {
         let config = Config::default();
         Self::with_config(config)
     }
 
-    /// Create a new server instance with custom configuration
+    /// Create a new server instance with custom configuration (simulation mode)
     pub fn with_config(config: Config) -> Self {
-        let bridge = Arc::new(ResolveBridge::new());
+        Self::with_mode_and_config(ConnectionMode::Simulation, config)
+    }
+
+    /// Create a new server instance with real DaVinci Resolve connection
+    pub fn new_real() -> Self {
+        let config = Config::default();
+        Self::with_mode_and_config(ConnectionMode::Real, config)
+    }
+
+    /// Create a new server instance with specific connection mode and configuration
+    pub fn with_mode_and_config(mode: ConnectionMode, config: Config) -> Self {
+        let bridge = Arc::new(ResolveBridge::new(mode));
         Self {
             config: Arc::new(config),
             bridge,
@@ -1018,6 +1030,144 @@ impl DaVinciResolveServer {
                         }
                     },
                     "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== PHASE 4 WEEK 3: RENDERING & DELIVERY OPERATIONS ====================
+
+            Tool::new(
+                "add_to_render_queue",
+                "Add a timeline to the render queue with specified preset",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the render preset to use"
+                        },
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Name of the timeline to render (uses current if None)"
+                        },
+                        "use_in_out_range": {
+                            "type": "boolean",
+                            "description": "Whether to render only the in/out range instead of entire timeline",
+                            "default": false
+                        }
+                    },
+                    "required": ["preset_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "start_render",
+                "Start rendering all jobs in the render queue",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "clear_render_queue",
+                "Clear all jobs from the render queue",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_render_status",
+                "Get current render progress and status information",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_project",
+                "Export project with metadata and optional media consolidation",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "export_path": {
+                            "type": "string",
+                            "description": "Path to export the project to"
+                        },
+                        "include_media": {
+                            "type": "boolean",
+                            "description": "Whether to include media files in export",
+                            "default": false
+                        },
+                        "project_name": {
+                            "type": "string",
+                            "description": "Name of project to export (uses current project if None)"
+                        }
+                    },
+                    "required": ["export_path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "create_render_preset",
+                "Create a custom render preset with specified settings",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name for the render preset"
+                        },
+                        "format": {
+                            "type": "string",
+                            "description": "Output format",
+                            "enum": ["MP4", "MOV", "MXF"]
+                        },
+                        "codec": {
+                            "type": "string",
+                            "description": "Video codec",
+                            "enum": ["H.264", "H.265", "ProRes"]
+                        },
+                        "resolution_width": {
+                            "type": "integer",
+                            "description": "Width in pixels",
+                            "minimum": 1920
+                        },
+                        "resolution_height": {
+                            "type": "integer",
+                            "description": "Height in pixels",
+                            "minimum": 1080
+                        },
+                        "frame_rate": {
+                            "type": "number",
+                            "description": "Frame rate",
+                            "minimum": 24.0,
+                            "maximum": 60.0
+                        },
+                        "quality": {
+                            "type": "integer",
+                            "description": "Quality level (1-100)",
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "audio_codec": {
+                            "type": "string",
+                            "description": "Audio codec",
+                            "enum": ["AAC", "ProRes"],
+                            "default": "AAC"
+                        },
+                        "audio_bitrate": {
+                            "type": "integer",
+                            "description": "Audio bitrate in kbps",
+                            "minimum": 64,
+                            "maximum": 192,
+                            "default": 192
+                        }
+                    },
+                    "required": ["preset_name", "format", "codec", "resolution_width", "resolution_height", "frame_rate", "quality"],
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),

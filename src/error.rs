@@ -18,6 +18,12 @@ pub enum ResolveError {
     #[error("Bin not found: {name}")]
     BinNotFound { name: String },
     
+    #[error("Render preset not found: {name}")]
+    PresetNotFound { name: String },
+    
+    #[error("Render job not found: {name}")]
+    RenderNotFound { name: String },
+    
     #[error("Tool not found: {name}")]
     ToolNotFound { name: String },
     
@@ -96,6 +102,8 @@ impl From<ResolveError> for rmcp::Error {
             ResolveError::TimelineNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
             ResolveError::MediaNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
             ResolveError::BinNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::PresetNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
+            ResolveError::RenderNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
             ResolveError::ToolNotFound { .. } => rmcp::Error::invalid_params(err.to_string(), None),
             ResolveError::InvalidTimelineItemId { .. } => rmcp::Error::invalid_params(err.to_string(), None),
             ResolveError::InvalidNodeIndex { .. } => rmcp::Error::invalid_params(err.to_string(), None),

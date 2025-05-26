@@ -8,6 +8,7 @@ This directory contains all integration and unit tests for the DaVinci Resolve M
 - **`integration_test.rs`** - Comprehensive integration tests for all MCP server functionality
 - **`simple_integration_test.rs`** - Basic integration tests for core operations
 - **`real_connection_test.rs`** - Tests with real DaVinci Resolve connection (requires running DaVinci Resolve)
+- **`native_integration_test.rs`** - Native FFI integration tests (requires DaVinci Resolve native libraries)
 - **`mcp_client_test.rs`** - MCP protocol communication tests (requires server startup)
 
 ### Unit Tests
@@ -30,6 +31,9 @@ cargo test --test simple_integration_test
 ```bash
 # Make sure DaVinci Resolve is running with external scripting enabled
 cargo test --test real_connection_test -- --ignored
+
+# Test native FFI integration (requires DaVinci Resolve native libraries)
+cargo test --test native_integration_test -- --ignored
 ```
 
 ### Run MCP Protocol Tests
@@ -54,6 +58,9 @@ cargo test -- --nocapture
 - `real_connection_test.rs` - Real DaVinci Resolve integration
   - Requires DaVinci Resolve 20+ running
   - Requires "External scripting using local network" enabled in preferences
+- `native_integration_test.rs` - Native FFI integration
+  - Requires DaVinci Resolve native libraries installed
+  - Tests low-level FFI bindings
 
 ### 🖥️ Requires Server Startup
 - `mcp_client_test.rs` - Full MCP protocol testing

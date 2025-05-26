@@ -14,9 +14,7 @@ categories = ["multimedia::video", "api-bindings"]
 name = "davinci-mcp-server"
 path = "src/bin/server.rs"
 
-[[bin]]
-name = "test-native"
-path = "src/bin/test_native.rs"
+
 
 
 

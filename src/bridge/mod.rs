@@ -26,7 +26,8 @@ pub struct ResolveBridge {
     state: Arc<Mutex<ResolveState>>,
     /// Connection status
     connected: Arc<Mutex<bool>>,
-    /// Native DaVinci Resolve integration
+    /// Native DaVinci Resolve integration (future feature)
+    #[allow(dead_code)]
     native: Arc<Mutex<Option<NativeDaVinciResolve>>>,
 }
 
@@ -486,40 +487,15 @@ impl ResolveBridge {
             ConnectionMode::Real => {
                 tracing::info!("Attempting to connect to real DaVinci Resolve instance...");
                 
-                // Try native integration first
-                let mut native_guard = self.native.lock().await;
-                let mut native_resolve = NativeDaVinciResolve::new();
-                
-                match native_resolve.initialize() {
+                // Test Python API connection
+                match self.test_python_api_connection().await {
                     Ok(()) => {
-                        tracing::info!("🚀 Native DaVinci Resolve integration available!");
-                        match native_resolve.connect() {
-                            Ok(()) => {
-                                tracing::info!("✅ Native connection established successfully");
-                                *native_guard = Some(native_resolve);
-                                *self.connected.lock().await = true;
-                                return Ok(());
-                            },
-                            Err(e) => {
-                                tracing::warn!("⚠️ Native connection failed: {}, falling back to Python", e);
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        tracing::warn!("⚠️ Native integration not available: {}, falling back to Python", e);
-                    }
-                }
-                drop(native_guard);
-                
-                // Fallback to Python integration
-                match self.check_davinci_resolve_connection().await {
-                    Ok(()) => {
-                        tracing::info!("🐍 Successfully connected to DaVinci Resolve via Python");
+                        tracing::info!("✅ Python API connection established successfully");
                         *self.connected.lock().await = true;
                         Ok(())
                     },
                     Err(e) => {
-                        tracing::error!("❌ Failed to connect to DaVinci Resolve: {}", e);
+                        tracing::error!("❌ Python API connection failed: {}", e);
                         *self.connected.lock().await = false;
                         Err(e)
                     }
@@ -528,88 +504,7 @@ impl ResolveBridge {
         }
     }
 
-    /// Check if DaVinci Resolve is running and accessible
-    async fn check_davinci_resolve_connection(&self) -> ResolveResult<()> {
-        // Try to connect to DaVinci Resolve on port 15000 (main API port)
-        match tokio::net::TcpStream::connect("127.0.0.1:15000").await {
-            Ok(_) => {
-                tracing::info!("DaVinci Resolve appears to be running (port 15000 accessible)");
-                
-                // Additional check: try to import DaVinci Resolve API
-                match self.test_davinci_resolve_api().await {
-                    Ok(()) => Ok(()),
-                    Err(e) => {
-                        tracing::warn!("DaVinci Resolve API test failed: {}", e);
-                        Err(ResolveError::NotRunning)
-                    }
-                }
-            },
-            Err(_) => {
-                tracing::error!("Cannot connect to DaVinci Resolve on port 15000");
-                Err(ResolveError::NotRunning)
-            }
-        }
-    }
 
-    /// Test DaVinci Resolve API functionality
-    async fn test_davinci_resolve_api(&self) -> ResolveResult<()> {
-        tracing::info!("Testing DaVinci Resolve API access...");
-        
-        // Try to test DaVinci Resolve API via Python subprocess
-        let python_test_script = r#"
-import sys
-import os
-
-# Add DaVinci Resolve Python API path
-resolve_api_path = "/opt/resolve/Developer/Scripting/Modules"
-if resolve_api_path not in sys.path:
-    sys.path.append(resolve_api_path)
-
-try:
-    import DaVinciResolveScript as dvr_script
-    resolve = dvr_script.scriptapp("Resolve")
-    if resolve is None:
-        print("ERROR: DaVinci Resolve API not available - make sure 'External scripting using local network' is enabled")
-        sys.exit(1)
-    else:
-        print("SUCCESS: DaVinci Resolve API accessible")
-        # Test basic functionality
-        project_manager = resolve.GetProjectManager()
-        if project_manager:
-            print("SUCCESS: Project manager accessible")
-        sys.exit(0)
-except ImportError as e:
-    print(f"ERROR: Cannot import DaVinciResolveScript: {e}")
-    sys.exit(1)
-except Exception as e:
-    print(f"ERROR: {e}")
-    sys.exit(1)
-"#;
-
-        // Execute Python test script
-        let output = tokio::process::Command::new("python3")
-            .arg("-c")
-            .arg(python_test_script)
-            .output()
-            .await
-            .map_err(|e| ResolveError::api_call("python_test", format!("Failed to execute Python test: {}", e)))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        
-        tracing::debug!("Python test output: {}", stdout);
-        if !stderr.is_empty() {
-            tracing::debug!("Python test stderr: {}", stderr);
-        }
-
-        if output.status.success() && stdout.contains("SUCCESS") {
-            tracing::info!("DaVinci Resolve API test successful");
-            Ok(())
-        } else {
-            tracing::error!("DaVinci Resolve API test failed: {}", stdout);
-            Err(ResolveError::api_call("python_test", format!("DaVinci Resolve API not accessible: {}", stdout)))
-        }
-    }
 
     /// Check if bridge is connected
     pub async fn is_connected(&self) -> bool {
@@ -732,110 +627,232 @@ except Exception as e:
     async fn call_real_api(&self, method: &str, args: &Value) -> ResolveResult<Value> {
         use std::process::Command;
         
-        // Create a temporary Python script to call DaVinci Resolve API
-        let python_script = format!(r#"
-import DaVinciResolveScript as dvr_script
-import json
+        tracing::debug!("Calling real DaVinci Resolve API: {} with args: {}", method, args);
+        
+        // Create Python script for the specific API call
+        let python_script = match method {
+            "switch_page" => {
+                let page = args["page"].as_str().unwrap_or("edit");
+                format!(r#"
 import sys
+import json
+sys.path.append("/opt/resolve/Developer/Scripting/Modules")
 
 try:
+    import DaVinciResolveScript as dvr_script
     resolve = dvr_script.scriptapp("Resolve")
     if not resolve:
-        print(json.dumps({{"error": "Could not connect to DaVinci Resolve"}}))
+        print(json.dumps({{"error": "Cannot connect to DaVinci Resolve"}}))
+        sys.exit(1)
+    
+    result = resolve.OpenPage("{}")
+    print(json.dumps({{"success": True, "result": "Switched to {} page", "returned": result}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+    sys.exit(1)
+"#, page, page)
+            },
+            "create_empty_timeline" => {
+                let name = args["name"].as_str().unwrap_or("New Timeline");
+                // Add timestamp to make timeline name unique
+                let unique_name = format!("{} {}", name, chrono::Utc::now().timestamp());
+                format!(r#"
+import sys
+import json
+import time
+sys.path.append("/opt/resolve/Developer/Scripting/Modules")
+
+try:
+    import DaVinciResolveScript as dvr_script
+    resolve = dvr_script.scriptapp("Resolve")
+    if not resolve:
+        print(json.dumps({{"error": "Cannot connect to DaVinci Resolve"}}))
         sys.exit(1)
     
     project_manager = resolve.GetProjectManager()
     project = project_manager.GetCurrentProject()
-    
     if not project:
         print(json.dumps({{"error": "No project open"}}))
         sys.exit(1)
     
-    method = "{}"
-    args = {}
+    media_pool = project.GetMediaPool()
+    timeline = media_pool.CreateEmptyTimeline("{}")
     
-    # Handle different API methods
-    if method == "switch_page":
-        page = args.get("page", "edit")
-        resolve.OpenPage(page)
-        result = {{"result": f"Switched to {{page}} page", "previous_page": page}}
-    elif method == "create_empty_timeline":
-        name = args.get("name", "New Timeline")
-        frame_rate = args.get("frame_rate", "24")
-        width = args.get("resolution_width", 1920)
-        height = args.get("resolution_height", 1080)
-        
-        media_pool = project.GetMediaPool()
-        timeline = media_pool.CreateEmptyTimeline(name)
-        if timeline:
-            result = {{"result": f"Created timeline '{{name}}'", "timeline_id": str(timeline.GetUniqueId())}}
-        else:
-            result = {{"error": "Failed to create timeline"}}
-    elif method == "add_marker":
-        timeline = project.GetCurrentTimeline()
-        if timeline:
-            frame = args.get("frame", 0)
-            color = args.get("color", "Blue")
-            note = args.get("note", "")
-            
-            marker_added = timeline.AddMarker(frame, color, note, note, 1)
-            if marker_added:
-                result = {{"result": f"Added {{color}} marker at frame {{frame}}"}}
-            else:
-                result = {{"error": "Failed to add marker"}}
-        else:
-            result = {{"error": "No timeline selected"}}
-    elif method == "list_timelines_tool":
-        media_pool = project.GetMediaPool()
-        timelines = []
-        timeline_count = project.GetTimelineCount()
-        for i in range(1, timeline_count + 1):
-            timeline = project.GetTimelineByIndex(i)
-            if timeline:
-                timelines.append({{
-                    "name": timeline.GetName(),
-                    "frame_rate": timeline.GetSetting("timelineFrameRate"),
-                    "resolution": f"{{timeline.GetSetting('timelineResolutionWidth')}}x{{timeline.GetSetting('timelineResolutionHeight')}}"
-                }})
-        result = {{"timelines": timelines, "count": len(timelines)}}
+    if timeline:
+        timeline_name = timeline.GetName()
+        print(json.dumps({{"success": True, "result": "Created timeline '{}'", "timeline_name": timeline_name}}))
     else:
-        result = {{"error": f"Unsupported method: {{method}}"}}
-    
-    print(json.dumps(result))
-    
+        print(json.dumps({{"error": "Failed to create timeline"}}))
+        sys.exit(1)
 except Exception as e:
     print(json.dumps({{"error": str(e)}}))
     sys.exit(1)
-"#, method, args);
+"#, unique_name, unique_name)
+            },
+            "add_marker" => {
+                let frame = args["frame"].as_i64().unwrap_or(0);
+                let color = args["color"].as_str().unwrap_or("Blue");
+                let note = args["note"].as_str().unwrap_or("");
+                format!(r#"
+import sys
+import json
+sys.path.append("/opt/resolve/Developer/Scripting/Modules")
 
-        // Write script to temporary file
-        let script_path = "/tmp/dvr_api_call.py";
-        std::fs::write(script_path, python_script)
-            .map_err(|e| ResolveError::internal(&format!("Failed to write Python script: {}", e)))?;
+try:
+    import DaVinciResolveScript as dvr_script
+    resolve = dvr_script.scriptapp("Resolve")
+    if not resolve:
+        print(json.dumps({{"error": "Cannot connect to DaVinci Resolve"}}))
+        sys.exit(1)
+    
+    project_manager = resolve.GetProjectManager()
+    project = project_manager.GetCurrentProject()
+    if not project:
+        print(json.dumps({{"error": "No project open"}}))
+        sys.exit(1)
+    
+    timeline = project.GetCurrentTimeline()
+    if not timeline:
+        print(json.dumps({{"error": "No timeline selected"}}))
+        sys.exit(1)
+    
+    result = timeline.AddMarker({}, "{}", "{}", "{}", 1)
+    if result:
+        print(json.dumps({{"success": True, "result": "Added {} marker at frame {}"}}))
+    else:
+        print(json.dumps({{"error": "Failed to add marker"}}))
+        sys.exit(1)
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+    sys.exit(1)
+"#, frame, color, note, note, color, frame)
+            },
+            "list_timelines_tool" => {
+                r#"
+import sys
+import json
+sys.path.append("/opt/resolve/Developer/Scripting/Modules")
+
+try:
+    import DaVinciResolveScript as dvr_script
+    resolve = dvr_script.scriptapp("Resolve")
+    if not resolve:
+        print(json.dumps({"error": "Cannot connect to DaVinci Resolve"}))
+        sys.exit(1)
+    
+    project_manager = resolve.GetProjectManager()
+    project = project_manager.GetCurrentProject()
+    if not project:
+        print(json.dumps({"error": "No project open"}))
+        sys.exit(1)
+    
+    timeline_count = project.GetTimelineCount()
+    timelines = []
+    
+    for i in range(1, timeline_count + 1):
+        timeline = project.GetTimelineByIndex(i)
+        if timeline:
+            timelines.append({
+                "name": timeline.GetName(),
+                "frame_rate": timeline.GetSetting("timelineFrameRate"),
+                "resolution": f"{timeline.GetSetting('timelineResolutionWidth')}x{timeline.GetSetting('timelineResolutionHeight')}"
+            })
+    
+    print(json.dumps({"success": True, "timelines": timelines, "count": len(timelines)}))
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
+    sys.exit(1)
+"#.to_string()
+            },
+            _ => {
+                return Err(ResolveError::not_supported(format!("Real API method: {}", method)));
+            }
+        };
 
         // Execute Python script
         let output = Command::new("python3")
-            .arg(script_path)
+            .arg("-c")
+            .arg(&python_script)
             .output()
             .map_err(|e| ResolveError::internal(&format!("Failed to execute Python script: {}", e)))?;
 
-        // Clean up
-        let _ = std::fs::remove_file(script_path);
-
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(ResolveError::internal(&format!("Python script failed: {}", stderr)));
+            return Err(ResolveError::api_call(method, format!("Python script failed: {}", stderr)));
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: Value = serde_json::from_str(&stdout)
-            .map_err(|e| ResolveError::internal(&format!("Failed to parse Python output: {}", e)))?;
+        let json_result: serde_json::Value = serde_json::from_str(&stdout)
+            .map_err(|e| ResolveError::internal(&format!("Failed to parse Python response: {}", e)))?;
 
-        if let Some(error) = result.get("error") {
-            return Err(ResolveError::internal(&format!("DaVinci Resolve API error: {}", error)));
+        if let Some(_error) = json_result.get("error") {
+            return Err(ResolveError::api_call(method, _error.as_str().unwrap_or("Unknown error").to_string()));
         }
 
-        Ok(result)
+        if json_result.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+            Ok(json_result)
+        } else {
+            Err(ResolveError::api_call(method, "API call did not return success".to_string()))
+        }
+    }
+
+    /// Test Python API connection to DaVinci Resolve
+    async fn test_python_api_connection(&self) -> ResolveResult<()> {
+        use std::process::Command;
+        
+        tracing::debug!("Testing Python API connection to DaVinci Resolve...");
+        
+        let python_script = r#"
+import sys
+import json
+sys.path.append("/opt/resolve/Developer/Scripting/Modules")
+
+try:
+    import DaVinciResolveScript as dvr_script
+    resolve = dvr_script.scriptapp("Resolve")
+    if not resolve:
+        print(json.dumps({"error": "Cannot connect to DaVinci Resolve"}))
+        sys.exit(1)
+    
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        print(json.dumps({"error": "Cannot get project manager"}))
+        sys.exit(1)
+    
+    print(json.dumps({"success": True, "message": "Connection successful"}))
+except ImportError as e:
+    print(json.dumps({"error": f"Cannot import DaVinciResolveScript: {e}"}))
+    sys.exit(1)
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
+    sys.exit(1)
+"#;
+
+        let output = Command::new("python3")
+            .arg("-c")
+            .arg(python_script)
+            .output()
+            .map_err(|e| ResolveError::internal(&format!("Failed to execute Python test script: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(ResolveError::internal(&format!("Python test script failed: {}", stderr)));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let json_result: serde_json::Value = serde_json::from_str(&stdout)
+            .map_err(|e| ResolveError::internal(&format!("Failed to parse Python test response: {}", e)))?;
+
+        if let Some(_error) = json_result.get("error") {
+            return Err(ResolveError::NotRunning);
+        }
+
+        if json_result.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+            tracing::info!("🐍 Python API connection test successful");
+            Ok(())
+        } else {
+            Err(ResolveError::NotRunning)
+        }
     }
 
     async fn create_project(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {

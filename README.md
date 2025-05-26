@@ -153,10 +153,13 @@ cargo audit
 
 ## Documentation
 
-- [Features](docs/FEATURES.md) - Complete feature list
-- [Usage Guide](docs/USAGE_GUIDE.md) - Detailed usage instructions
-- [Development Status](docs/development/DEVELOPMENT_STATUS.md) - Current development status
-- [Implementation Summary](docs/development/IMPLEMENTATION_SUMMARY.md) - Technical implementation details
+📚 **[Complete Documentation](docs/README.md)** - Comprehensive documentation index
+
+### Quick Links
+- **[Quick Start Guide](docs/guides/QUICK_START.md)** - Get up and running in 5 minutes
+- **[Usage Guide](docs/guides/USAGE_GUIDE.md)** - Detailed usage instructions and examples
+- **[Features Overview](docs/FEATURES.md)** - Complete feature list and capabilities
+- **[Project Reports](docs/reports/)** - Development progress and achievement reports
 
 ## Contributing
 

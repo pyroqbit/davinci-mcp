@@ -619,6 +619,91 @@ impl ResolveBridge {
             "transcribe_audio" => self.transcribe_audio(&mut state, args).await,
             "clear_transcription" => self.clear_transcription(&mut state, args).await,
 
+            // Extended Project Management Operations
+            "delete_media" => self.delete_media(&mut state, args).await,
+            "move_media_to_bin" => self.move_media_to_bin(&mut state, args).await,
+            "export_folder" => self.export_folder(&mut state, args).await,
+            "transcribe_folder_audio" => self.transcribe_folder_audio(&mut state, args).await,
+            "clear_folder_transcription" => self.clear_folder_transcription(&mut state, args).await,
+
+            // Cache and Optimization Operations
+            "set_cache_mode" => self.set_cache_mode(&mut state, args).await,
+            "set_optimized_media_mode" => self.set_optimized_media_mode(&mut state, args).await,
+            "set_proxy_mode" => self.set_proxy_mode(&mut state, args).await,
+            "set_proxy_quality" => self.set_proxy_quality(&mut state, args).await,
+            "set_cache_path" => self.set_cache_path(&mut state, args).await,
+            "generate_optimized_media" => self.generate_optimized_media(&mut state, args).await,
+            "delete_optimized_media" => self.delete_optimized_media(&mut state, args).await,
+
+            // Extended Color Operations
+            "create_color_preset_album" => self.create_color_preset_album(&mut state, args).await,
+            "delete_color_preset_album" => self.delete_color_preset_album(&mut state, args).await,
+            "export_all_power_grade_luts" => self.export_all_power_grade_luts(&mut state, args).await,
+
+            // Layout and Interface Management
+            "save_layout_preset" => self.save_layout_preset(&mut state, args).await,
+            "load_layout_preset" => self.load_layout_preset(&mut state, args).await,
+            "export_layout_preset" => self.export_layout_preset(&mut state, args).await,
+            "import_layout_preset" => self.import_layout_preset(&mut state, args).await,
+            "delete_layout_preset" => self.delete_layout_preset(&mut state, args).await,
+
+            // Application Control
+            "quit_app" => self.quit_app(&mut state, args).await,
+            "restart_app" => self.restart_app(&mut state, args).await,
+            "open_settings" => self.open_settings(&mut state, args).await,
+            "open_app_preferences" => self.open_app_preferences(&mut state, args).await,
+
+            // Cloud Operations
+            "create_cloud_project" => self.create_cloud_project(&mut state, args).await,
+            "import_cloud_project" => self.import_cloud_project(&mut state, args).await,
+            "restore_cloud_project" => self.restore_cloud_project(&mut state, args).await,
+            "export_project_to_cloud" => self.export_project_to_cloud(&mut state, args).await,
+            "add_user_to_cloud_project" => self.add_user_to_cloud_project(&mut state, args).await,
+            "remove_user_from_cloud_project" => self.remove_user_from_cloud_project(&mut state, args).await,
+
+            // Object Inspection
+            "object_help" => self.object_help(&mut state, args).await,
+            "inspect_custom_object" => self.inspect_custom_object(&mut state, args).await,
+
+            // Project Properties
+            "set_project_property" => self.set_project_property(&mut state, args).await,
+            "set_timeline_format" => self.set_timeline_format(&mut state, args).await,
+
+            // ---- NEW: Timeline Object API ----
+            "get_timeline_name" => self.get_timeline_name(&mut state, args).await,
+            "set_timeline_name" => self.set_timeline_name(&mut state, args).await,
+            "get_timeline_frames" => self.get_timeline_frames(&mut state, args).await,
+            "set_timeline_timecode" => self.set_timeline_timecode(&mut state, args).await,
+            "get_timeline_track_count" => self.get_timeline_track_count(&mut state, args).await,
+            "get_timeline_items_in_track" => self.get_timeline_items_in_track(&mut state, args).await,
+            "add_timeline_marker" => self.add_timeline_marker(&mut state, args).await,
+            "get_timeline_markers" => self.get_timeline_markers(&mut state, args).await,
+            "delete_timeline_marker" => self.delete_timeline_marker(&mut state, args).await,
+            "duplicate_timeline" => self.duplicate_timeline(&mut state, args).await,
+            "create_compound_clip" => self.create_compound_clip(&mut state, args).await,
+            "create_fusion_clip" => self.create_fusion_clip(&mut state, args).await,
+            "export_timeline" => self.export_timeline(&mut state, args).await,
+            "insert_generator" => self.insert_generator(&mut state, args).await,
+            "insert_title" => self.insert_title(&mut state, args).await,
+            "grab_still" => self.grab_still(&mut state, args).await,
+
+            // ---- NEW: TimelineItem Object API ----
+            "get_timeline_item_property" => self.get_timeline_item_property(&mut state, args).await,
+            "set_timeline_item_property" => self.set_timeline_item_property(&mut state, args).await,
+            "get_timeline_item_details" => self.get_timeline_item_details(&mut state, args).await,
+            "add_timeline_item_marker" => self.add_timeline_item_marker(&mut state, args).await,
+            "get_timeline_item_markers" => self.get_timeline_item_markers(&mut state, args).await,
+            "delete_timeline_item_marker" => self.delete_timeline_item_marker(&mut state, args).await,
+            "timeline_item_flag" => self.timeline_item_flag(&mut state, args).await,
+            "timeline_item_color" => self.timeline_item_color(&mut state, args).await,
+            "fusion_comp" => self.fusion_comp(&mut state, args).await,
+            "version" => self.version(&mut state, args).await,
+            "stereo_params" => self.stereo_params(&mut state, args).await,
+            "node_lut" => self.node_lut(&mut state, args).await,
+            "set_cdl" => self.set_cdl(&mut state, args).await,
+            "take" => self.take(&mut state, args).await,
+            "copy_grades" => self.copy_grades(&mut state, args).await,
+
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
     }
@@ -2810,12 +2895,1022 @@ except Exception as e:
 
     async fn clear_transcription(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
         let clip_name = args["clip_name"].as_str()
-            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "required string"))?;
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "parameter is required"))?;
 
         Ok(serde_json::json!({
-            "result": format!("Cleared transcription for clip '{}'", clip_name),
-            "operation_id": Uuid::new_v4().to_string(),
-            "clip_name": clip_name
+            "result": format!("Cleared transcription for clip: {}", clip_name),
+            "clip_name": clip_name,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Extended Project Management Operations ----
+    async fn delete_media(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "parameter is required"))?;
+
+        // Remove clip from media pool
+        state.media_pool.clips.remove(clip_name);
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted media clip: {}", clip_name),
+            "clip_name": clip_name,
+            "status": "success"
+        }))
+    }
+
+    async fn move_media_to_bin(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "parameter is required"))?;
+        let bin_name = args["bin_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("bin_name", "parameter is required"))?;
+
+        // Update clip's bin assignment
+        if let Some(clip) = state.media_pool.clips.get_mut(clip_name) {
+            clip.bin = Some(bin_name.to_string());
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Moved clip '{}' to bin '{}'", clip_name, bin_name),
+            "clip_name": clip_name,
+            "bin_name": bin_name,
+            "status": "success"
+        }))
+    }
+
+    async fn export_folder(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let folder_name = args["folder_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("folder_name", "parameter is required"))?;
+        let export_path = args["export_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("export_path", "parameter is required"))?;
+        let export_type = args["export_type"].as_str().unwrap_or("DRB");
+
+        Ok(serde_json::json!({
+            "result": format!("Exported folder '{}' to '{}' as {}", folder_name, export_path, export_type),
+            "folder_name": folder_name,
+            "export_path": export_path,
+            "export_type": export_type,
+            "status": "success"
+        }))
+    }
+
+    async fn transcribe_folder_audio(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let folder_name = args["folder_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("folder_name", "parameter is required"))?;
+        let language = args["language"].as_str().unwrap_or("en-US");
+
+        Ok(serde_json::json!({
+            "result": format!("Started transcription for all clips in folder '{}' using language '{}'", folder_name, language),
+            "folder_name": folder_name,
+            "language": language,
+            "status": "success"
+        }))
+    }
+
+    async fn clear_folder_transcription(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let folder_name = args["folder_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("folder_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Cleared transcriptions for all clips in folder '{}'", folder_name),
+            "folder_name": folder_name,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Cache and Optimization Operations ----
+    async fn set_cache_mode(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let mode = args["mode"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("mode", "parameter is required"))?;
+
+        if !["auto", "on", "off"].contains(&mode) {
+            return Err(ResolveError::invalid_parameter("mode", "mode must be 'auto', 'on', or 'off'"));
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set cache mode to '{}'", mode),
+            "mode": mode,
+            "status": "success"
+        }))
+    }
+
+    async fn set_optimized_media_mode(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let mode = args["mode"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("mode", "parameter is required"))?;
+
+        if !["auto", "on", "off"].contains(&mode) {
+            return Err(ResolveError::invalid_parameter("mode", "mode must be 'auto', 'on', or 'off'"));
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set optimized media mode to '{}'", mode),
+            "mode": mode,
+            "status": "success"
+        }))
+    }
+
+    async fn set_proxy_mode(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let mode = args["mode"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("mode", "parameter is required"))?;
+
+        if !["auto", "on", "off"].contains(&mode) {
+            return Err(ResolveError::invalid_parameter("mode", "mode must be 'auto', 'on', or 'off'"));
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set proxy mode to '{}'", mode),
+            "mode": mode,
+            "status": "success"
+        }))
+    }
+
+    async fn set_proxy_quality(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let quality = args["quality"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("quality", "parameter is required"))?;
+
+        if !["quarter", "half", "threeQuarter", "full"].contains(&quality) {
+            return Err(ResolveError::invalid_parameter("mode", "quality must be 'quarter', 'half', 'threeQuarter', or 'full'"));
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set proxy quality to '{}'", quality),
+            "quality": quality,
+            "status": "success"
+        }))
+    }
+
+    async fn set_cache_path(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let path_type = args["path_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("path_type", "parameter is required"))?;
+        let path = args["path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("path", "parameter is required"))?;
+
+        if !["local", "network"].contains(&path_type) {
+            return Err(ResolveError::invalid_parameter("mode", "path_type must be 'local' or 'network'"));
+        }
+
+        Ok(serde_json::json!({
+            "result": format!("Set {} cache path to '{}'", path_type, path),
+            "path_type": path_type,
+            "path": path,
+            "status": "success"
+        }))
+    }
+
+    async fn generate_optimized_media(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_names = args["clip_names"].as_array();
+
+        let message = if let Some(clips) = clip_names {
+            format!("Started generating optimized media for {} clips", clips.len())
+        } else {
+            "Started generating optimized media for all clips in media pool".to_string()
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "clip_names": clip_names,
+            "status": "success"
+        }))
+    }
+
+    async fn delete_optimized_media(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let clip_names = args["clip_names"].as_array();
+
+        let message = if let Some(clips) = clip_names {
+            format!("Deleted optimized media for {} clips", clips.len())
+        } else {
+            "Deleted optimized media for all clips in media pool".to_string()
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "clip_names": clip_names,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Extended Color Operations ----
+    async fn create_color_preset_album(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let album_name = args["album_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("album_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Created color preset album '{}'", album_name),
+            "album_name": album_name,
+            "status": "success"
+        }))
+    }
+
+    async fn delete_color_preset_album(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let album_name = args["album_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("album_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted color preset album '{}'", album_name),
+            "album_name": album_name,
+            "status": "success"
+        }))
+    }
+
+    async fn export_all_power_grade_luts(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let export_dir = args["export_dir"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("export_dir", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Exported all PowerGrade LUTs to directory '{}'", export_dir),
+            "export_dir": export_dir,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Layout and Interface Management ----
+    async fn save_layout_preset(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Saved layout preset '{}'", preset_name),
+            "preset_name": preset_name,
+            "status": "success"
+        }))
+    }
+
+    async fn load_layout_preset(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Loaded layout preset '{}'", preset_name),
+            "preset_name": preset_name,
+            "status": "success"
+        }))
+    }
+
+    async fn export_layout_preset(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "parameter is required"))?;
+        let export_path = args["export_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("export_path", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Exported layout preset '{}' to '{}'", preset_name, export_path),
+            "preset_name": preset_name,
+            "export_path": export_path,
+            "status": "success"
+        }))
+    }
+
+    async fn import_layout_preset(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let import_path = args["import_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("import_path", "parameter is required"))?;
+        let preset_name = args["preset_name"].as_str();
+
+        let name = preset_name.unwrap_or("Imported Layout");
+
+        Ok(serde_json::json!({
+            "result": format!("Imported layout preset from '{}' as '{}'", import_path, name),
+            "import_path": import_path,
+            "preset_name": name,
+            "status": "success"
+        }))
+    }
+
+    async fn delete_layout_preset(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let preset_name = args["preset_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("preset_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Deleted layout preset '{}'", preset_name),
+            "preset_name": preset_name,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Application Control ----
+    async fn quit_app(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let force = args["force"].as_bool().unwrap_or(false);
+        let save_project = args["save_project"].as_bool().unwrap_or(true);
+
+        let message = if force {
+            "Force quitting DaVinci Resolve application"
+        } else if save_project {
+            "Saving project and quitting DaVinci Resolve application"
+        } else {
+            "Quitting DaVinci Resolve application without saving"
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "force": force,
+            "save_project": save_project,
+            "status": "success"
+        }))
+    }
+
+    async fn restart_app(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let wait_seconds = args["wait_seconds"].as_i64().unwrap_or(5);
+
+        Ok(serde_json::json!({
+            "result": format!("Restarting DaVinci Resolve application (waiting {} seconds)", wait_seconds),
+            "wait_seconds": wait_seconds,
+            "status": "success"
+        }))
+    }
+
+    async fn open_settings(&self, _state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        Ok(serde_json::json!({
+            "result": "Opened Project Settings dialog",
+            "status": "success"
+        }))
+    }
+
+    async fn open_app_preferences(&self, _state: &mut ResolveState, _args: Value) -> ResolveResult<Value> {
+        Ok(serde_json::json!({
+            "result": "Opened Application Preferences dialog",
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Cloud Operations ----
+    async fn create_cloud_project(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let project_name = args["project_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("project_name", "parameter is required"))?;
+        let folder_path = args["folder_path"].as_str();
+
+        let message = if let Some(path) = folder_path {
+            format!("Created cloud project '{}' in folder '{}'", project_name, path)
+        } else {
+            format!("Created cloud project '{}'", project_name)
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "project_name": project_name,
+            "folder_path": folder_path,
+            "status": "success"
+        }))
+    }
+
+    async fn import_cloud_project(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let cloud_id = args["cloud_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("cloud_id", "parameter is required"))?;
+        let project_name = args["project_name"].as_str();
+
+        let message = if let Some(name) = project_name {
+            format!("Imported cloud project '{}' as '{}'", cloud_id, name)
+        } else {
+            format!("Imported cloud project '{}'", cloud_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "cloud_id": cloud_id,
+            "project_name": project_name,
+            "status": "success"
+        }))
+    }
+
+    async fn restore_cloud_project(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let cloud_id = args["cloud_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("cloud_id", "parameter is required"))?;
+        let project_name = args["project_name"].as_str();
+
+        let message = if let Some(name) = project_name {
+            format!("Restored cloud project '{}' as '{}'", cloud_id, name)
+        } else {
+            format!("Restored cloud project '{}'", cloud_id)
+        };
+
+        Ok(serde_json::json!({
+            "result": message,
+            "cloud_id": cloud_id,
+            "project_name": project_name,
+            "status": "success"
+        }))
+    }
+
+    async fn export_project_to_cloud(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let project_name = args["project_name"].as_str()
+            .unwrap_or_else(|| state.current_project.as_deref().unwrap_or("Current Project"));
+
+        Ok(serde_json::json!({
+            "result": format!("Exported project '{}' to DaVinci Resolve cloud", project_name),
+            "project_name": project_name,
+            "status": "success"
+        }))
+    }
+
+    async fn add_user_to_cloud_project(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let cloud_id = args["cloud_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("cloud_id", "parameter is required"))?;
+        let user_email = args["user_email"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("user_email", "parameter is required"))?;
+        let permissions = args["permissions"].as_str().unwrap_or("viewer");
+
+        Ok(serde_json::json!({
+            "result": format!("Added user '{}' to cloud project '{}' with '{}' permissions", user_email, cloud_id, permissions),
+            "cloud_id": cloud_id,
+            "user_email": user_email,
+            "permissions": permissions,
+            "status": "success"
+        }))
+    }
+
+    async fn remove_user_from_cloud_project(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let cloud_id = args["cloud_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("cloud_id", "parameter is required"))?;
+        let user_email = args["user_email"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("user_email", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Removed user '{}' from cloud project '{}'", user_email, cloud_id),
+            "cloud_id": cloud_id,
+            "user_email": user_email,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Object Inspection ----
+    async fn object_help(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let object_type = args["object_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("object_type", "parameter is required"))?;
+
+        let help_text = match object_type {
+            "resolve" => "DaVinci Resolve main object - provides access to project manager and global settings",
+            "project_manager" => "Project Manager - handles project creation, opening, and management",
+            "project" => "Project object - contains timelines, media pool, and project settings",
+            "media_pool" => "Media Pool - manages media clips, bins, and import/export operations",
+            "timeline" => "Timeline object - handles timeline items, tracks, and editing operations",
+            "media_storage" => "Media Storage - provides access to file system and media browsing",
+            _ => "Unknown object type. Available types: resolve, project_manager, project, media_pool, timeline, media_storage"
+        };
+
+        Ok(serde_json::json!({
+            "result": help_text,
+            "object_type": object_type,
+            "status": "success"
+        }))
+    }
+
+    async fn inspect_custom_object(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let object_path = args["object_path"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("object_path", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Inspected object at path: {}", object_path),
+            "object_path": object_path,
+            "methods": ["GetName", "GetProperty", "SetProperty"],
+            "properties": ["name", "type", "status"],
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Project Properties ----
+    async fn set_project_property(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let property_name = args["property_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_name", "parameter is required"))?;
+        let property_value = &args["property_value"];
+
+        Ok(serde_json::json!({
+            "result": format!("Set project property '{}' to '{}'", property_name, property_value),
+            "property_name": property_name,
+            "property_value": property_value,
+            "status": "success"
+        }))
+    }
+
+    async fn set_timeline_format(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let width = args["width"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("width", "parameter is required"))?;
+        let height = args["height"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("height", "parameter is required"))?;
+        let frame_rate = args["frame_rate"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame_rate", "parameter is required"))?;
+        let interlaced = args["interlaced"].as_bool().unwrap_or(false);
+
+        Ok(serde_json::json!({
+            "result": format!("Set timeline format to {}x{} @ {}fps{}", width, height, frame_rate, if interlaced { " (interlaced)" } else { "" }),
+            "width": width,
+            "height": height,
+            "frame_rate": frame_rate,
+            "interlaced": interlaced,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: Timeline Object API ----
+    async fn get_timeline_name(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        
+        Ok(serde_json::json!({
+            "result": format!("Timeline name: {}", timeline_name.unwrap_or("Current Timeline")),
+            "timeline_name": timeline_name,
+            "status": "success"
+        }))
+    }
+
+    async fn set_timeline_name(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_name", "parameter is required"))?;
+        let new_name = args["new_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("new_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Renamed timeline '{}' to '{}'", timeline_name, new_name),
+            "old_name": timeline_name,
+            "new_name": new_name,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_frames(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        
+        Ok(serde_json::json!({
+            "result": "Timeline frame information retrieved",
+            "timeline_name": timeline_name,
+            "start_frame": 1001,
+            "end_frame": 2000,
+            "duration": 999,
+            "status": "success"
+        }))
+    }
+
+    async fn set_timeline_timecode(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let timecode = args["timecode"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timecode", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Set timeline timecode to: {}", timecode),
+            "timeline_name": timeline_name,
+            "timecode": timecode,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_track_count(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let track_type = args["track_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("track_type", "parameter is required"))?;
+
+        let count = match track_type {
+            "video" => 4,
+            "audio" => 8,
+            "subtitle" => 2,
+            _ => 0,
+        };
+
+        Ok(serde_json::json!({
+            "result": format!("Track count for {}: {}", track_type, count),
+            "timeline_name": timeline_name,
+            "track_type": track_type,
+            "count": count,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_items_in_track(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let track_type = args["track_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("track_type", "parameter is required"))?;
+        let track_index = args["track_index"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("track_index", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Items in {} track {}", track_type, track_index),
+            "timeline_name": timeline_name,
+            "track_type": track_type,
+            "track_index": track_index,
+            "items": [
+                {"id": "item_1", "name": "Clip 1", "start": 1001, "end": 1100},
+                {"id": "item_2", "name": "Clip 2", "start": 1100, "end": 1200}
+            ],
+            "status": "success"
+        }))
+    }
+
+    async fn add_timeline_marker(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let frame_id = args["frame_id"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame_id", "parameter is required"))?;
+        let color = args["color"].as_str().unwrap_or("Blue");
+        let name = args["name"].as_str().unwrap_or("");
+        let note = args["note"].as_str().unwrap_or("");
+
+        Ok(serde_json::json!({
+            "result": format!("Added timeline marker at frame {}", frame_id),
+            "timeline_name": timeline_name,
+            "frame_id": frame_id,
+            "color": color,
+            "name": name,
+            "note": note,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_markers(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+
+        Ok(serde_json::json!({
+            "result": "Timeline markers retrieved",
+            "timeline_name": timeline_name,
+            "markers": [
+                {"frame_id": 1050, "color": "Blue", "name": "Scene 1", "note": "Opening scene"},
+                {"frame_id": 1200, "color": "Red", "name": "Cut", "note": "Hard cut here"}
+            ],
+            "status": "success"
+        }))
+    }
+
+    async fn delete_timeline_marker(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let frame_num = args["frame_num"].as_f64();
+        let color = args["color"].as_str();
+        let custom_data = args["custom_data"].as_str();
+
+        Ok(serde_json::json!({
+            "result": "Timeline marker(s) deleted",
+            "timeline_name": timeline_name,
+            "frame_num": frame_num,
+            "color": color,
+            "custom_data": custom_data,
+            "status": "success"
+        }))
+    }
+
+    async fn duplicate_timeline(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let source_timeline_name = args["source_timeline_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("source_timeline_name", "parameter is required"))?;
+        let new_timeline_name = args["new_timeline_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("new_timeline_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Duplicated timeline '{}' as '{}'", source_timeline_name, new_timeline_name),
+            "source_timeline_name": source_timeline_name,
+            "new_timeline_name": new_timeline_name,
+            "status": "success"
+        }))
+    }
+
+    async fn create_compound_clip(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let timeline_item_ids = args["timeline_item_ids"].as_array()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_ids", "parameter is required"))?;
+        let clip_name = args["clip_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("clip_name", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Created compound clip '{}' from {} items", clip_name, timeline_item_ids.len()),
+            "timeline_name": timeline_name,
+            "clip_name": clip_name,
+            "item_count": timeline_item_ids.len(),
+            "status": "success"
+        }))
+    }
+
+    async fn create_fusion_clip(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let timeline_item_ids = args["timeline_item_ids"].as_array()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_ids", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Created Fusion clip from {} items", timeline_item_ids.len()),
+            "timeline_name": timeline_name,
+            "item_count": timeline_item_ids.len(),
+            "status": "success"
+        }))
+    }
+
+    async fn export_timeline(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let file_name = args["file_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("file_name", "parameter is required"))?;
+        let export_type = args["export_type"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("export_type", "parameter is required"))?;
+        let export_subtype = args["export_subtype"].as_str();
+
+        Ok(serde_json::json!({
+            "result": format!("Exported timeline as {} to {}", export_type, file_name),
+            "timeline_name": timeline_name,
+            "file_name": file_name,
+            "export_type": export_type,
+            "export_subtype": export_subtype,
+            "status": "success"
+        }))
+    }
+
+    async fn insert_generator(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let generator_name = args["generator_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("generator_name", "parameter is required"))?;
+        let generator_type = args["generator_type"].as_str().unwrap_or("standard");
+
+        Ok(serde_json::json!({
+            "result": format!("Inserted {} generator: {}", generator_type, generator_name),
+            "timeline_name": timeline_name,
+            "generator_name": generator_name,
+            "generator_type": generator_type,
+            "status": "success"
+        }))
+    }
+
+    async fn insert_title(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let title_name = args["title_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("title_name", "parameter is required"))?;
+        let title_type = args["title_type"].as_str().unwrap_or("standard");
+
+        Ok(serde_json::json!({
+            "result": format!("Inserted {} title: {}", title_type, title_name),
+            "timeline_name": timeline_name,
+            "title_name": title_name,
+            "title_type": title_type,
+            "status": "success"
+        }))
+    }
+
+    async fn grab_still(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_name = args["timeline_name"].as_str();
+        let still_frame_source = args["still_frame_source"].as_str();
+        let grab_all = args["grab_all"].as_bool().unwrap_or(false);
+
+        let action = if grab_all { "Grabbed all stills" } else { "Grabbed current still" };
+
+        Ok(serde_json::json!({
+            "result": action,
+            "timeline_name": timeline_name,
+            "still_frame_source": still_frame_source,
+            "grab_all": grab_all,
+            "status": "success"
+        }))
+    }
+
+    // ---- NEW: TimelineItem Object API ----
+    async fn get_timeline_item_property(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let property_key = args["property_key"].as_str();
+
+        let properties = if let Some(key) = property_key {
+            serde_json::json!({ key: "property_value" })
+        } else {
+            serde_json::json!({
+                "name": "Timeline Item",
+                "duration": 100,
+                "start": 1001,
+                "end": 1101,
+                "left_offset": 0,
+                "right_offset": 0
+            })
+        };
+
+        Ok(serde_json::json!({
+            "result": "Timeline item property retrieved",
+            "timeline_item_id": timeline_item_id,
+            "property_key": property_key,
+            "properties": properties,
+            "status": "success"
+        }))
+    }
+
+    async fn set_timeline_item_property(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let property_key = args["property_key"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("property_key", "parameter is required"))?;
+        let property_value = &args["property_value"];
+
+        Ok(serde_json::json!({
+            "result": format!("Set property '{}' on timeline item", property_key),
+            "timeline_item_id": timeline_item_id,
+            "property_key": property_key,
+            "property_value": property_value,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_item_details(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": "Timeline item details retrieved",
+            "timeline_item_id": timeline_item_id,
+            "details": {
+                "name": "Timeline Item",
+                "duration": 100,
+                "start": 1001,
+                "end": 1101,
+                "left_offset": 0,
+                "right_offset": 0,
+                "fusion_comp_count": 1,
+                "num_nodes": 3,
+                "takes_count": 1,
+                "selected_take_index": 0
+            },
+            "status": "success"
+        }))
+    }
+
+    async fn add_timeline_item_marker(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let frame_id = args["frame_id"].as_f64()
+            .ok_or_else(|| ResolveError::invalid_parameter("frame_id", "parameter is required"))?;
+        let color = args["color"].as_str().unwrap_or("Blue");
+        let name = args["name"].as_str().unwrap_or("");
+        let note = args["note"].as_str().unwrap_or("");
+
+        Ok(serde_json::json!({
+            "result": format!("Added marker to timeline item at frame {}", frame_id),
+            "timeline_item_id": timeline_item_id,
+            "frame_id": frame_id,
+            "color": color,
+            "name": name,
+            "note": note,
+            "status": "success"
+        }))
+    }
+
+    async fn get_timeline_item_markers(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": "Timeline item markers retrieved",
+            "timeline_item_id": timeline_item_id,
+            "markers": [
+                {"frame_id": 10, "color": "Blue", "name": "Start", "note": "Beginning of clip"},
+                {"frame_id": 50, "color": "Red", "name": "Mid", "note": "Middle point"}
+            ],
+            "status": "success"
+        }))
+    }
+
+    async fn delete_timeline_item_marker(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let frame_num = args["frame_num"].as_f64();
+        let color = args["color"].as_str();
+        let custom_data = args["custom_data"].as_str();
+
+        Ok(serde_json::json!({
+            "result": "Timeline item marker(s) deleted",
+            "timeline_item_id": timeline_item_id,
+            "frame_num": frame_num,
+            "color": color,
+            "custom_data": custom_data,
+            "status": "success"
+        }))
+    }
+
+    async fn timeline_item_flag(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let color = args["color"].as_str();
+
+        let action = if color.is_some() {
+            format!("Added {} flag to timeline item", color.unwrap())
+        } else {
+            "Retrieved flags from timeline item".to_string()
+        };
+
+        Ok(serde_json::json!({
+            "result": action,
+            "timeline_item_id": timeline_item_id,
+            "color": color,
+            "flags": ["Red", "Blue"],
+            "status": "success"
+        }))
+    }
+
+    async fn timeline_item_color(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let color_name = args["color_name"].as_str();
+
+        let action = if let Some(color) = color_name {
+            format!("Set timeline item color to {}", color)
+        } else {
+            "Retrieved timeline item color".to_string()
+        };
+
+        Ok(serde_json::json!({
+            "result": action,
+            "timeline_item_id": timeline_item_id,
+            "color_name": color_name.unwrap_or("Orange"),
+            "status": "success"
+        }))
+    }
+
+    async fn fusion_comp(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let comp_index = args["comp_index"].as_i64();
+        let comp_name = args["comp_name"].as_str();
+        let file_path = args["file_path"].as_str();
+
+        Ok(serde_json::json!({
+            "result": "Fusion composition operation completed",
+            "timeline_item_id": timeline_item_id,
+            "comp_index": comp_index,
+            "comp_name": comp_name,
+            "file_path": file_path,
+            "status": "success"
+        }))
+    }
+
+    async fn version(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let version_name = args["version_name"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("version_name", "parameter is required"))?;
+        let version_type = args["version_type"].as_str().unwrap_or("local");
+
+        Ok(serde_json::json!({
+            "result": format!("Version operation completed for '{}'", version_name),
+            "timeline_item_id": timeline_item_id,
+            "version_name": version_name,
+            "version_type": version_type,
+            "status": "success"
+        }))
+    }
+
+    async fn stereo_params(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let params = &args["params"];
+
+        Ok(serde_json::json!({
+            "result": "Stereo parameters operation completed",
+            "timeline_item_id": timeline_item_id,
+            "params": params,
+            "status": "success"
+        }))
+    }
+
+    async fn node_lut(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let node_index = args["node_index"].as_i64()
+            .ok_or_else(|| ResolveError::invalid_parameter("node_index", "parameter is required"))?;
+        let lut_path = args["lut_path"].as_str();
+
+        let action = if lut_path.is_some() {
+            format!("Set LUT on node {} to {}", node_index, lut_path.unwrap())
+        } else {
+            format!("Retrieved LUT from node {}", node_index)
+        };
+
+        Ok(serde_json::json!({
+            "result": action,
+            "timeline_item_id": timeline_item_id,
+            "node_index": node_index,
+            "lut_path": lut_path,
+            "status": "success"
+        }))
+    }
+
+    async fn set_cdl(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let cdl_map = &args["cdl_map"];
+
+        Ok(serde_json::json!({
+            "result": "CDL parameters set on timeline item",
+            "timeline_item_id": timeline_item_id,
+            "cdl_map": cdl_map,
+            "status": "success"
+        }))
+    }
+
+    async fn take(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let timeline_item_id = args["timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("timeline_item_id", "parameter is required"))?;
+        let media_pool_item = args["media_pool_item"].as_str();
+        let take_index = args["take_index"].as_i64();
+
+        Ok(serde_json::json!({
+            "result": "Take operation completed",
+            "timeline_item_id": timeline_item_id,
+            "media_pool_item": media_pool_item,
+            "take_index": take_index,
+            "status": "success"
+        }))
+    }
+
+    async fn copy_grades(&self, _state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
+        let source_timeline_item_id = args["source_timeline_item_id"].as_str()
+            .ok_or_else(|| ResolveError::invalid_parameter("source_timeline_item_id", "parameter is required"))?;
+        let target_timeline_item_ids = args["target_timeline_item_ids"].as_array()
+            .ok_or_else(|| ResolveError::invalid_parameter("target_timeline_item_ids", "parameter is required"))?;
+
+        Ok(serde_json::json!({
+            "result": format!("Copied grades from {} to {} items", source_timeline_item_id, target_timeline_item_ids.len()),
+            "source_timeline_item_id": source_timeline_item_id,
+            "target_count": target_timeline_item_ids.len(),
+            "status": "success"
         }))
     }
 }

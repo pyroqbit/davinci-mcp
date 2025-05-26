@@ -558,6 +558,611 @@ fn default_audio_bitrate() -> u32 {
     192000
 }
 
+// ---- NEW: Extended Project Management Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteMediaRequest {
+    #[schemars(description = "Name of the clip to delete")]
+    pub clip_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct MoveMediaToBinRequest {
+    #[schemars(description = "Name of the clip to move")]
+    pub clip_name: String,
+    #[schemars(description = "Name of the target bin")]
+    pub bin_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportFolderRequest {
+    #[schemars(description = "Name of the folder to export")]
+    pub folder_name: String,
+    #[schemars(description = "Path to save the exported file")]
+    pub export_path: String,
+    #[schemars(description = "Export format (DRB is default and currently the only supported option)")]
+    #[serde(default = "default_export_type")]
+    pub export_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TranscribeFolderAudioRequest {
+    #[schemars(description = "Name of the folder containing clips to transcribe")]
+    pub folder_name: String,
+    #[schemars(description = "Language code for transcription (default: en-US)")]
+    #[serde(default = "default_language")]
+    pub language: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClearFolderTranscriptionRequest {
+    #[schemars(description = "Name of the folder to clear transcriptions from")]
+    pub folder_name: String,
+}
+
+// ---- NEW: Cache and Optimization Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetCacheModeRequest {
+    #[schemars(description = "Cache mode to set. Options: 'auto', 'on', 'off'")]
+    pub mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetOptimizedMediaModeRequest {
+    #[schemars(description = "Optimized media mode to set. Options: 'auto', 'on', 'off'")]
+    pub mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetProxyModeRequest {
+    #[schemars(description = "Proxy mode to set. Options: 'auto', 'on', 'off'")]
+    pub mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetProxyQualityRequest {
+    #[schemars(description = "Proxy quality to set. Options: 'quarter', 'half', 'threeQuarter', 'full'")]
+    pub quality: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetCachePathRequest {
+    #[schemars(description = "Type of cache path to set. Options: 'local', 'network'")]
+    pub path_type: String,
+    #[schemars(description = "File system path for the cache")]
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateOptimizedMediaRequest {
+    #[schemars(description = "Optional list of clip names. If None, processes all clips in media pool")]
+    pub clip_names: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteOptimizedMediaRequest {
+    #[schemars(description = "Optional list of clip names. If None, processes all clips in media pool")]
+    pub clip_names: Option<Vec<String>>,
+}
+
+// ---- NEW: Extended Color Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateColorPresetAlbumRequest {
+    #[schemars(description = "Name for the new album")]
+    pub album_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteColorPresetAlbumRequest {
+    #[schemars(description = "Name of the album to delete")]
+    pub album_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportAllPowerGradeLutsRequest {
+    #[schemars(description = "Directory to save the exported LUTs")]
+    pub export_dir: String,
+}
+
+// ---- NEW: Layout and Interface Management ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SaveLayoutPresetRequest {
+    #[schemars(description = "Name for the saved preset")]
+    pub preset_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LoadLayoutPresetRequest {
+    #[schemars(description = "Name of the preset to load")]
+    pub preset_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportLayoutPresetRequest {
+    #[schemars(description = "Name of the preset to export")]
+    pub preset_name: String,
+    #[schemars(description = "Path to export the preset file to")]
+    pub export_path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ImportLayoutPresetRequest {
+    #[schemars(description = "Path to the preset file to import")]
+    pub import_path: String,
+    #[schemars(description = "Name to save the imported preset as (uses filename if None)")]
+    pub preset_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteLayoutPresetRequest {
+    #[schemars(description = "Name of the preset to delete")]
+    pub preset_name: String,
+}
+
+// ---- NEW: Application Control ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QuitAppRequest {
+    #[schemars(description = "Whether to force quit even if unsaved changes (potentially dangerous)")]
+    #[serde(default)]
+    pub force: bool,
+    #[schemars(description = "Whether to save the project before quitting")]
+    #[serde(default = "default_save_project")]
+    pub save_project: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RestartAppRequest {
+    #[schemars(description = "Seconds to wait between quit and restart")]
+    #[serde(default = "default_wait_seconds")]
+    pub wait_seconds: i32,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct OpenSettingsRequest {
+    // No additional parameters needed
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct OpenAppPreferencesRequest {
+    // No additional parameters needed
+}
+
+// ---- NEW: Cloud Operations ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateCloudProjectRequest {
+    #[schemars(description = "Name for the new cloud project")]
+    pub project_name: String,
+    #[schemars(description = "Optional path for the cloud project folder")]
+    pub folder_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ImportCloudProjectRequest {
+    #[schemars(description = "Cloud ID or reference of the project to import")]
+    pub cloud_id: String,
+    #[schemars(description = "Optional custom name for the imported project (uses original name if None)")]
+    pub project_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RestoreCloudProjectRequest {
+    #[schemars(description = "Cloud ID or reference of the project to restore")]
+    pub cloud_id: String,
+    #[schemars(description = "Optional custom name for the restored project (uses original name if None)")]
+    pub project_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportProjectToCloudRequest {
+    #[schemars(description = "Optional name of project to export (uses current project if None)")]
+    pub project_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddUserToCloudProjectRequest {
+    #[schemars(description = "Cloud ID of the project")]
+    pub cloud_id: String,
+    #[schemars(description = "Email of the user to add")]
+    pub user_email: String,
+    #[schemars(description = "Permission level (viewer, editor, admin)")]
+    #[serde(default = "default_permissions")]
+    pub permissions: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RemoveUserFromCloudProjectRequest {
+    #[schemars(description = "Cloud ID of the project")]
+    pub cloud_id: String,
+    #[schemars(description = "Email of the user to remove")]
+    pub user_email: String,
+}
+
+// ---- NEW: Object Inspection ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ObjectHelpRequest {
+    #[schemars(description = "Type of object to get help for ('resolve', 'project_manager', 'project', 'media_pool', 'timeline', 'media_storage')")]
+    pub object_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InspectCustomObjectRequest {
+    #[schemars(description = "Path to the object using dot notation (e.g., 'resolve.GetMediaStorage()')")]
+    pub object_path: String,
+}
+
+// ---- NEW: Project Properties ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetProjectPropertyRequest {
+    #[schemars(description = "Name of the property to set")]
+    pub property_name: String,
+    #[schemars(description = "Value to set for the property")]
+    pub property_value: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineFormatRequest {
+    #[schemars(description = "Timeline width in pixels")]
+    pub width: i32,
+    #[schemars(description = "Timeline height in pixels")]
+    pub height: i32,
+    #[schemars(description = "Timeline frame rate")]
+    pub frame_rate: f64,
+    #[schemars(description = "Whether the timeline should use interlaced processing")]
+    #[serde(default)]
+    pub interlaced: bool,
+}
+
+// Helper functions for default values
+fn default_export_type() -> String {
+    "DRB".to_string()
+}
+
+fn default_save_project() -> bool {
+    true
+}
+
+fn default_wait_seconds() -> i32 {
+    5
+}
+
+fn default_permissions() -> String {
+    "viewer".to_string()
+}
+
+// ---- NEW: Timeline Object API ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineNameRequest {
+    #[schemars(description = "Timeline name to get")]
+    pub timeline_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineNameRequest {
+    #[schemars(description = "Timeline name to set")]
+    pub timeline_name: String,
+    #[schemars(description = "New name for the timeline")]
+    pub new_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineFramesRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineTimecodeRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Timecode to set")]
+    pub timecode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineTrackCountRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Track type (video, audio, subtitle)")]
+    pub track_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineItemsInTrackRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Track type (video, audio, subtitle)")]
+    pub track_type: String,
+    #[schemars(description = "Track index")]
+    pub track_index: i32,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddTimelineMarkerRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Frame ID for the marker")]
+    pub frame_id: f64,
+    #[schemars(description = "Marker color")]
+    #[serde(default = "default_marker_color")]
+    pub color: String,
+    #[schemars(description = "Marker name")]
+    #[serde(default)]
+    pub name: String,
+    #[schemars(description = "Marker note")]
+    #[serde(default)]
+    pub note: String,
+    #[schemars(description = "Marker duration")]
+    #[serde(default = "default_marker_duration")]
+    pub duration: f64,
+    #[schemars(description = "Custom data")]
+    #[serde(default)]
+    pub custom_data: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineMarkersRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteTimelineMarkerRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Frame number")]
+    pub frame_num: Option<f64>,
+    #[schemars(description = "Marker color to delete")]
+    pub color: Option<String>,
+    #[schemars(description = "Custom data to match")]
+    pub custom_data: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DuplicateTimelineRequest {
+    #[schemars(description = "Source timeline name")]
+    pub source_timeline_name: String,
+    #[schemars(description = "New timeline name")]
+    pub new_timeline_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateCompoundClipRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Timeline item IDs to include")]
+    pub timeline_item_ids: Vec<String>,
+    #[schemars(description = "Compound clip name")]
+    pub clip_name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CreateFusionClipRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Timeline item IDs to include")]
+    pub timeline_item_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExportTimelineRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Export file name")]
+    pub file_name: String,
+    #[schemars(description = "Export type (AAF, EDL, XML, FCPXML, DRT, ADL, OTIO)")]
+    pub export_type: String,
+    #[schemars(description = "Export subtype")]
+    pub export_subtype: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InsertGeneratorRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Generator name")]
+    pub generator_name: String,
+    #[schemars(description = "Generator type (standard, fusion, ofx)")]
+    #[serde(default = "default_generator_type")]
+    pub generator_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InsertTitleRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Title name")]
+    pub title_name: String,
+    #[schemars(description = "Title type (standard, fusion)")]
+    #[serde(default = "default_title_type")]
+    pub title_type: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GrabStillRequest {
+    #[schemars(description = "Timeline name")]
+    pub timeline_name: Option<String>,
+    #[schemars(description = "Still frame source")]
+    pub still_frame_source: Option<String>,
+    #[schemars(description = "Grab all stills")]
+    #[serde(default)]
+    pub grab_all: bool,
+}
+
+// ---- NEW: TimelineItem Object API ----
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineItemPropertyRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Property key")]
+    pub property_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetTimelineItemPropertyRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Property key")]
+    pub property_key: String,
+    #[schemars(description = "Property value")]
+    pub property_value: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineItemDetailsRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddTimelineItemMarkerRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Frame ID for the marker")]
+    pub frame_id: f64,
+    #[schemars(description = "Marker color")]
+    #[serde(default = "default_marker_color")]
+    pub color: String,
+    #[schemars(description = "Marker name")]
+    #[serde(default)]
+    pub name: String,
+    #[schemars(description = "Marker note")]
+    #[serde(default)]
+    pub note: String,
+    #[schemars(description = "Marker duration")]
+    #[serde(default = "default_marker_duration")]
+    pub duration: f64,
+    #[schemars(description = "Custom data")]
+    #[serde(default)]
+    pub custom_data: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTimelineItemMarkersRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DeleteTimelineItemMarkerRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Frame number")]
+    pub frame_num: Option<f64>,
+    #[schemars(description = "Marker color to delete")]
+    pub color: Option<String>,
+    #[schemars(description = "Custom data to match")]
+    pub custom_data: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TimelineItemFlagRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Flag color")]
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TimelineItemColorRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Color name")]
+    pub color_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FusionCompRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Composition index")]
+    pub comp_index: Option<i32>,
+    #[schemars(description = "Composition name")]
+    pub comp_name: Option<String>,
+    #[schemars(description = "File path for import/export")]
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VersionRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Version name")]
+    pub version_name: String,
+    #[schemars(description = "Version type")]
+    #[serde(default = "default_version_type")]
+    pub version_type: String,
+    #[schemars(description = "New version name for rename")]
+    pub new_version_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StereoParamsRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Stereo parameters")]
+    pub params: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NodeLUTRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Node index")]
+    pub node_index: i32,
+    #[schemars(description = "LUT file path")]
+    pub lut_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetCDLRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "CDL parameters")]
+    pub cdl_map: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TakeRequest {
+    #[schemars(description = "Timeline item ID")]
+    pub timeline_item_id: String,
+    #[schemars(description = "Media pool item for new take")]
+    pub media_pool_item: Option<String>,
+    #[schemars(description = "Start frame")]
+    pub start_frame: Option<f64>,
+    #[schemars(description = "End frame")]
+    pub end_frame: Option<f64>,
+    #[schemars(description = "Take index")]
+    pub take_index: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CopyGradesRequest {
+    #[schemars(description = "Source timeline item ID")]
+    pub source_timeline_item_id: String,
+    #[schemars(description = "Target timeline item IDs")]
+    pub target_timeline_item_ids: Vec<String>,
+}
+
+// Helper functions for defaults
+fn default_marker_color() -> String {
+    "Blue".to_string()
+}
+
+fn default_marker_duration() -> f64 {
+    1.0
+}
+
+fn default_generator_type() -> String {
+    "standard".to_string()
+}
+
+fn default_title_type() -> String {
+    "standard".to_string()
+}
+
+fn default_version_type() -> String {
+    "local".to_string()
+}
+
 // ============================================
 // TOOL IMPLEMENTATIONS
 // ============================================
@@ -1156,6 +1761,413 @@ pub async fn handle_tool_call(
             })).await?;
             // Return full response for create_render_preset to include resolution details
             Ok(response.to_string())
+        }
+
+        // ---- NEW: Extended Project Management Operations ----
+        "delete_media" => {
+            let req: DeleteMediaRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_media", serde_json::json!({
+                "clip_name": req.clip_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "move_media_to_bin" => {
+            let req: MoveMediaToBinRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("move_media_to_bin", serde_json::json!({
+                "clip_name": req.clip_name,
+                "bin_name": req.bin_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_folder" => {
+            let req: ExportFolderRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_folder", serde_json::json!({
+                "folder_name": req.folder_name,
+                "export_path": req.export_path,
+                "export_type": req.export_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "transcribe_folder_audio" => {
+            let req: TranscribeFolderAudioRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("transcribe_folder_audio", serde_json::json!({
+                "folder_name": req.folder_name,
+                "language": req.language
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "clear_folder_transcription" => {
+            let req: ClearFolderTranscriptionRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("clear_folder_transcription", serde_json::json!({
+                "folder_name": req.folder_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Cache and Optimization Operations ----
+        "set_cache_mode" => {
+            let req: SetCacheModeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_cache_mode", serde_json::json!({
+                "mode": req.mode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_optimized_media_mode" => {
+            let req: SetOptimizedMediaModeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_optimized_media_mode", serde_json::json!({
+                "mode": req.mode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_proxy_mode" => {
+            let req: SetProxyModeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_proxy_mode", serde_json::json!({
+                "mode": req.mode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_proxy_quality" => {
+            let req: SetProxyQualityRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_proxy_quality", serde_json::json!({
+                "quality": req.quality
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_cache_path" => {
+            let req: SetCachePathRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_cache_path", serde_json::json!({
+                "path_type": req.path_type,
+                "path": req.path
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "generate_optimized_media" => {
+            let req: GenerateOptimizedMediaRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("generate_optimized_media", serde_json::json!({
+                "clip_names": req.clip_names
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_optimized_media" => {
+            let req: DeleteOptimizedMediaRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_optimized_media", serde_json::json!({
+                "clip_names": req.clip_names
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Extended Color Operations ----
+        "create_color_preset_album" => {
+            let req: CreateColorPresetAlbumRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_color_preset_album", serde_json::json!({
+                "album_name": req.album_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_color_preset_album" => {
+            let req: DeleteColorPresetAlbumRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_color_preset_album", serde_json::json!({
+                "album_name": req.album_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_all_power_grade_luts" => {
+            let req: ExportAllPowerGradeLutsRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_all_power_grade_luts", serde_json::json!({
+                "export_dir": req.export_dir
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Layout and Interface Management ----
+        "save_layout_preset" => {
+            let req: SaveLayoutPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("save_layout_preset", serde_json::json!({
+                "preset_name": req.preset_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "load_layout_preset" => {
+            let req: LoadLayoutPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("load_layout_preset", serde_json::json!({
+                "preset_name": req.preset_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_layout_preset" => {
+            let req: ExportLayoutPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_layout_preset", serde_json::json!({
+                "preset_name": req.preset_name,
+                "export_path": req.export_path
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "import_layout_preset" => {
+            let req: ImportLayoutPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("import_layout_preset", serde_json::json!({
+                "import_path": req.import_path,
+                "preset_name": req.preset_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_layout_preset" => {
+            let req: DeleteLayoutPresetRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_layout_preset", serde_json::json!({
+                "preset_name": req.preset_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Application Control ----
+        "quit_app" => {
+            let req: QuitAppRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("quit_app", serde_json::json!({
+                "force": req.force,
+                "save_project": req.save_project
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "restart_app" => {
+            let req: RestartAppRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("restart_app", serde_json::json!({
+                "wait_seconds": req.wait_seconds
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "open_settings" => {
+            let response = bridge.call_api("open_settings", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "open_app_preferences" => {
+            let response = bridge.call_api("open_app_preferences", serde_json::json!({})).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Cloud Operations ----
+        "create_cloud_project" => {
+            let req: CreateCloudProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_cloud_project", serde_json::json!({
+                "project_name": req.project_name,
+                "folder_path": req.folder_path
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "import_cloud_project" => {
+            let req: ImportCloudProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("import_cloud_project", serde_json::json!({
+                "cloud_id": req.cloud_id,
+                "project_name": req.project_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "restore_cloud_project" => {
+            let req: RestoreCloudProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("restore_cloud_project", serde_json::json!({
+                "cloud_id": req.cloud_id,
+                "project_name": req.project_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_project_to_cloud" => {
+            let req: ExportProjectToCloudRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_project_to_cloud", serde_json::json!({
+                "project_name": req.project_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "add_user_to_cloud_project" => {
+            let req: AddUserToCloudProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_user_to_cloud_project", serde_json::json!({
+                "cloud_id": req.cloud_id,
+                "user_email": req.user_email,
+                "permissions": req.permissions
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "remove_user_from_cloud_project" => {
+            let req: RemoveUserFromCloudProjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("remove_user_from_cloud_project", serde_json::json!({
+                "cloud_id": req.cloud_id,
+                "user_email": req.user_email
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Object Inspection ----
+        "object_help" => {
+            let req: ObjectHelpRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("object_help", serde_json::json!({
+                "object_type": req.object_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "inspect_custom_object" => {
+            let req: InspectCustomObjectRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("inspect_custom_object", serde_json::json!({
+                "object_path": req.object_path
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Project Properties ----
+        "set_project_property" => {
+            let req: SetProjectPropertyRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_project_property", serde_json::json!({
+                "property_name": req.property_name,
+                "property_value": req.property_value
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_format" => {
+            let req: SetTimelineFormatRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_format", serde_json::json!({
+                "width": req.width,
+                "height": req.height,
+                "frame_rate": req.frame_rate,
+                "interlaced": req.interlaced
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+
+        // ---- NEW: Timeline Object API ----
+        "get_timeline_name" => {
+            let req: GetTimelineNameRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_name", serde_json::json!({
+                "timeline_name": req.timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_name" => {
+            let req: SetTimelineNameRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_name", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "new_name": req.new_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_frames" => {
+            let req: GetTimelineFramesRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_frames", serde_json::json!({
+                "timeline_name": req.timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "set_timeline_timecode" => {
+            let req: SetTimelineTimecodeRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("set_timeline_timecode", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "timecode": req.timecode
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_track_count" => {
+            let req: GetTimelineTrackCountRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_track_count", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "track_type": req.track_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_items_in_track" => {
+            let req: GetTimelineItemsInTrackRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_items_in_track", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "track_type": req.track_type,
+                "track_index": req.track_index
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "add_timeline_marker" => {
+            let req: AddTimelineMarkerRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("add_timeline_marker", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "frame_id": req.frame_id,
+                "color": req.color,
+                "name": req.name,
+                "note": req.note,
+                "duration": req.duration,
+                "custom_data": req.custom_data
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "get_timeline_markers" => {
+            let req: GetTimelineMarkersRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("get_timeline_markers", serde_json::json!({
+                "timeline_name": req.timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "delete_timeline_marker" => {
+            let req: DeleteTimelineMarkerRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("delete_timeline_marker", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "frame_num": req.frame_num,
+                "color": req.color,
+                "custom_data": req.custom_data
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "duplicate_timeline" => {
+            let req: DuplicateTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("duplicate_timeline", serde_json::json!({
+                "source_timeline_name": req.source_timeline_name,
+                "new_timeline_name": req.new_timeline_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "create_compound_clip" => {
+            let req: CreateCompoundClipRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_compound_clip", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "timeline_item_ids": req.timeline_item_ids,
+                "clip_name": req.clip_name
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "create_fusion_clip" => {
+            let req: CreateFusionClipRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("create_fusion_clip", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "timeline_item_ids": req.timeline_item_ids
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "export_timeline" => {
+            let req: ExportTimelineRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("export_timeline", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "file_name": req.file_name,
+                "export_type": req.export_type,
+                "export_subtype": req.export_subtype
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "insert_generator" => {
+            let req: InsertGeneratorRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("insert_generator", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "generator_name": req.generator_name,
+                "generator_type": req.generator_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "insert_title" => {
+            let req: InsertTitleRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("insert_title", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "title_name": req.title_name,
+                "title_type": req.title_type
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
+        }
+        "grab_still" => {
+            let req: GrabStillRequest = serde_json::from_value(args)?;
+            let response = bridge.call_api("grab_still", serde_json::json!({
+                "timeline_name": req.timeline_name,
+                "still_frame_source": req.still_frame_source,
+                "grab_all": req.grab_all
+            })).await?;
+            Ok(response["result"].as_str().unwrap_or("Success").to_string())
         }
 
         _ => Err(crate::error::ResolveError::ToolNotFound {

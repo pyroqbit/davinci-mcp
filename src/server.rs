@@ -1240,6 +1240,1314 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // ==================== EXTENDED PROJECT MANAGEMENT OPERATIONS ====================
+            Tool::new(
+                "delete_media",
+                "Delete a media clip from the media pool by name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to delete"
+                        }
+                    },
+                    "required": ["clip_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "move_media_to_bin",
+                "Move a media clip to a specific bin in the media pool",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to move"
+                        },
+                        "bin_name": {
+                            "type": "string",
+                            "description": "Name of the target bin"
+                        }
+                    },
+                    "required": ["clip_name", "bin_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_folder",
+                "Export a folder to a DRB file or other format",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "folder_name": {
+                            "type": "string",
+                            "description": "Name of the folder to export"
+                        },
+                        "export_path": {
+                            "type": "string",
+                            "description": "Path to save the exported file"
+                        },
+                        "export_type": {
+                            "type": "string",
+                            "description": "Export format (DRB is default and currently the only supported option)",
+                            "default": "DRB"
+                        }
+                    },
+                    "required": ["folder_name", "export_path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "transcribe_folder_audio",
+                "Transcribe audio for all clips in a folder",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "folder_name": {
+                            "type": "string",
+                            "description": "Name of the folder containing clips to transcribe"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Language code for transcription (default: en-US)",
+                            "default": "en-US"
+                        }
+                    },
+                    "required": ["folder_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "clear_folder_transcription",
+                "Clear audio transcription for all clips in a folder",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "folder_name": {
+                            "type": "string",
+                            "description": "Name of the folder to clear transcriptions from"
+                        }
+                    },
+                    "required": ["folder_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== CACHE AND OPTIMIZATION OPERATIONS ====================
+            Tool::new(
+                "set_cache_mode",
+                "Set cache mode for the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "description": "Cache mode to set",
+                            "enum": ["auto", "on", "off"]
+                        }
+                    },
+                    "required": ["mode"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_optimized_media_mode",
+                "Set optimized media mode for the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "description": "Optimized media mode to set",
+                            "enum": ["auto", "on", "off"]
+                        }
+                    },
+                    "required": ["mode"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_proxy_mode",
+                "Set proxy media mode for the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "description": "Proxy mode to set",
+                            "enum": ["auto", "on", "off"]
+                        }
+                    },
+                    "required": ["mode"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_proxy_quality",
+                "Set proxy media quality for the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "quality": {
+                            "type": "string",
+                            "description": "Proxy quality to set",
+                            "enum": ["quarter", "half", "threeQuarter", "full"]
+                        }
+                    },
+                    "required": ["quality"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_cache_path",
+                "Set cache file path for the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "path_type": {
+                            "type": "string",
+                            "description": "Type of cache path to set",
+                            "enum": ["local", "network"]
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "File system path for the cache"
+                        }
+                    },
+                    "required": ["path_type", "path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "generate_optimized_media",
+                "Generate optimized media for specified clips or all clips if none specified",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Optional list of clip names. If None, processes all clips in media pool"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_optimized_media",
+                "Delete optimized media for specified clips or all clips if none specified",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Optional list of clip names. If None, processes all clips in media pool"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== EXTENDED COLOR OPERATIONS ====================
+            Tool::new(
+                "create_color_preset_album",
+                "Create a new album for color presets",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "album_name": {
+                            "type": "string",
+                            "description": "Name for the new album"
+                        }
+                    },
+                    "required": ["album_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_color_preset_album",
+                "Delete a color preset album",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "album_name": {
+                            "type": "string",
+                            "description": "Name of the album to delete"
+                        }
+                    },
+                    "required": ["album_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_all_power_grade_luts",
+                "Export all PowerGrade presets as LUT files",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "export_dir": {
+                            "type": "string",
+                            "description": "Directory to save the exported LUTs"
+                        }
+                    },
+                    "required": ["export_dir"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== LAYOUT AND INTERFACE MANAGEMENT ====================
+            Tool::new(
+                "save_layout_preset",
+                "Save the current UI layout as a preset",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name for the saved preset"
+                        }
+                    },
+                    "required": ["preset_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "load_layout_preset",
+                "Load a UI layout preset",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the preset to load"
+                        }
+                    },
+                    "required": ["preset_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_layout_preset",
+                "Export a layout preset to a file",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the preset to export"
+                        },
+                        "export_path": {
+                            "type": "string",
+                            "description": "Path to export the preset file to"
+                        }
+                    },
+                    "required": ["preset_name", "export_path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "import_layout_preset",
+                "Import a layout preset from a file",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "import_path": {
+                            "type": "string",
+                            "description": "Path to the preset file to import"
+                        },
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name to save the imported preset as (uses filename if None)"
+                        }
+                    },
+                    "required": ["import_path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_layout_preset",
+                "Delete a layout preset",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "preset_name": {
+                            "type": "string",
+                            "description": "Name of the preset to delete"
+                        }
+                    },
+                    "required": ["preset_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== APPLICATION CONTROL ====================
+            Tool::new(
+                "quit_app",
+                "Quit DaVinci Resolve application",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "force": {
+                            "type": "boolean",
+                            "description": "Whether to force quit even if unsaved changes (potentially dangerous)",
+                            "default": false
+                        },
+                        "save_project": {
+                            "type": "boolean",
+                            "description": "Whether to save the project before quitting",
+                            "default": true
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "restart_app",
+                "Restart DaVinci Resolve application",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "wait_seconds": {
+                            "type": "integer",
+                            "description": "Seconds to wait between quit and restart",
+                            "default": 5
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "open_settings",
+                "Open the Project Settings dialog in DaVinci Resolve",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "open_app_preferences",
+                "Open the Preferences dialog in DaVinci Resolve",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== CLOUD OPERATIONS ====================
+            Tool::new(
+                "create_cloud_project",
+                "Create a new cloud project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Name for the new cloud project"
+                        },
+                        "folder_path": {
+                            "type": "string",
+                            "description": "Optional path for the cloud project folder"
+                        }
+                    },
+                    "required": ["project_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "import_cloud_project",
+                "Import a project from DaVinci Resolve cloud",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "cloud_id": {
+                            "type": "string",
+                            "description": "Cloud ID or reference of the project to import"
+                        },
+                        "project_name": {
+                            "type": "string",
+                            "description": "Optional custom name for the imported project (uses original name if None)"
+                        }
+                    },
+                    "required": ["cloud_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "restore_cloud_project",
+                "Restore a project from DaVinci Resolve cloud",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "cloud_id": {
+                            "type": "string",
+                            "description": "Cloud ID or reference of the project to restore"
+                        },
+                        "project_name": {
+                            "type": "string",
+                            "description": "Optional custom name for the restored project (uses original name if None)"
+                        }
+                    },
+                    "required": ["cloud_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_project_to_cloud",
+                "Export current or specified project to DaVinci Resolve cloud",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Optional name of project to export (uses current project if None)"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_user_to_cloud_project",
+                "Add a user to a cloud project with specified permissions",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "cloud_id": {
+                            "type": "string",
+                            "description": "Cloud ID of the project"
+                        },
+                        "user_email": {
+                            "type": "string",
+                            "description": "Email of the user to add"
+                        },
+                        "permissions": {
+                            "type": "string",
+                            "description": "Permission level",
+                            "enum": ["viewer", "editor", "admin"],
+                            "default": "viewer"
+                        }
+                    },
+                    "required": ["cloud_id", "user_email"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "remove_user_from_cloud_project",
+                "Remove a user from a cloud project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "cloud_id": {
+                            "type": "string",
+                            "description": "Cloud ID of the project"
+                        },
+                        "user_email": {
+                            "type": "string",
+                            "description": "Email of the user to remove"
+                        }
+                    },
+                    "required": ["cloud_id", "user_email"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== OBJECT INSPECTION ====================
+            Tool::new(
+                "object_help",
+                "Get human-readable help for a DaVinci Resolve API object",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "object_type": {
+                            "type": "string",
+                            "description": "Type of object to get help for",
+                            "enum": ["resolve", "project_manager", "project", "media_pool", "timeline", "media_storage"]
+                        }
+                    },
+                    "required": ["object_type"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "inspect_custom_object",
+                "Inspect a custom DaVinci Resolve API object by path",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "object_path": {
+                            "type": "string",
+                            "description": "Path to the object using dot notation (e.g., 'resolve.GetMediaStorage()')"
+                        }
+                    },
+                    "required": ["object_path"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== PROJECT PROPERTIES ====================
+            Tool::new(
+                "set_project_property",
+                "Set a project property value",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "property_name": {
+                            "type": "string",
+                            "description": "Name of the property to set"
+                        },
+                        "property_value": {
+                            "description": "Value to set for the property"
+                        }
+                    },
+                    "required": ["property_name", "property_value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_format",
+                "Set timeline format (resolution and frame rate)",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "width": {
+                            "type": "integer",
+                            "description": "Timeline width in pixels"
+                        },
+                        "height": {
+                            "type": "integer",
+                            "description": "Timeline height in pixels"
+                        },
+                        "frame_rate": {
+                            "type": "number",
+                            "description": "Timeline frame rate"
+                        },
+                        "interlaced": {
+                            "type": "boolean",
+                            "description": "Whether the timeline should use interlaced processing",
+                            "default": false
+                        }
+                    },
+                    "required": ["width", "height", "frame_rate"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== TIMELINE OBJECT API ====================
+            Tool::new(
+                "get_timeline_name",
+                "Get timeline name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name to get (uses current if None)"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_name",
+                "Set timeline name",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name to set"
+                        },
+                        "new_name": {
+                            "type": "string",
+                            "description": "New name for the timeline"
+                        }
+                    },
+                    "required": ["timeline_name", "new_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_frames",
+                "Get timeline frame information",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_timecode",
+                "Set timeline timecode",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "timecode": {
+                            "type": "string",
+                            "description": "Timecode to set"
+                        }
+                    },
+                    "required": ["timecode"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_track_count",
+                "Get timeline track count",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "track_type": {
+                            "type": "string",
+                            "description": "Track type",
+                            "enum": ["video", "audio", "subtitle"]
+                        }
+                    },
+                    "required": ["track_type"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_items_in_track",
+                "Get items in timeline track",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "track_type": {
+                            "type": "string",
+                            "description": "Track type",
+                            "enum": ["video", "audio", "subtitle"]
+                        },
+                        "track_index": {
+                            "type": "integer",
+                            "description": "Track index"
+                        }
+                    },
+                    "required": ["track_type", "track_index"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_timeline_marker",
+                "Add marker to timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "frame_id": {
+                            "type": "number",
+                            "description": "Frame ID for the marker"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Marker color",
+                            "default": "Blue"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Marker name",
+                            "default": ""
+                        },
+                        "note": {
+                            "type": "string",
+                            "description": "Marker note",
+                            "default": ""
+                        },
+                        "duration": {
+                            "type": "number",
+                            "description": "Marker duration",
+                            "default": 1.0
+                        },
+                        "custom_data": {
+                            "type": "string",
+                            "description": "Custom data",
+                            "default": ""
+                        }
+                    },
+                    "required": ["frame_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_markers",
+                "Get timeline markers",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_timeline_marker",
+                "Delete timeline marker",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "frame_num": {
+                            "type": "number",
+                            "description": "Frame number"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Marker color to delete"
+                        },
+                        "custom_data": {
+                            "type": "string",
+                            "description": "Custom data to match"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "duplicate_timeline",
+                "Duplicate timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "source_timeline_name": {
+                            "type": "string",
+                            "description": "Source timeline name"
+                        },
+                        "new_timeline_name": {
+                            "type": "string",
+                            "description": "New timeline name"
+                        }
+                    },
+                    "required": ["source_timeline_name", "new_timeline_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "create_compound_clip",
+                "Create compound clip from timeline items",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "timeline_item_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Timeline item IDs to include"
+                        },
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Compound clip name"
+                        }
+                    },
+                    "required": ["timeline_item_ids", "clip_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "create_fusion_clip",
+                "Create Fusion clip from timeline items",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "timeline_item_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Timeline item IDs to include"
+                        }
+                    },
+                    "required": ["timeline_item_ids"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "export_timeline",
+                "Export timeline to file",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "file_name": {
+                            "type": "string",
+                            "description": "Export file name"
+                        },
+                        "export_type": {
+                            "type": "string",
+                            "description": "Export type",
+                            "enum": ["AAF", "EDL", "XML", "FCPXML", "DRT", "ADL", "OTIO"]
+                        },
+                        "export_subtype": {
+                            "type": "string",
+                            "description": "Export subtype"
+                        }
+                    },
+                    "required": ["file_name", "export_type"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "insert_generator",
+                "Insert generator into timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "generator_name": {
+                            "type": "string",
+                            "description": "Generator name"
+                        },
+                        "generator_type": {
+                            "type": "string",
+                            "description": "Generator type",
+                            "enum": ["standard", "fusion", "ofx"],
+                            "default": "standard"
+                        }
+                    },
+                    "required": ["generator_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "insert_title",
+                "Insert title into timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "title_name": {
+                            "type": "string",
+                            "description": "Title name"
+                        },
+                        "title_type": {
+                            "type": "string",
+                            "description": "Title type",
+                            "enum": ["standard", "fusion"],
+                            "default": "standard"
+                        }
+                    },
+                    "required": ["title_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "grab_still",
+                "Grab still from timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_name": {
+                            "type": "string",
+                            "description": "Timeline name (uses current if None)"
+                        },
+                        "still_frame_source": {
+                            "type": "string",
+                            "description": "Still frame source"
+                        },
+                        "grab_all": {
+                            "type": "boolean",
+                            "description": "Grab all stills",
+                            "default": false
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+
+            // ==================== TIMELINE ITEM OBJECT API ====================
+            Tool::new(
+                "get_timeline_item_property",
+                "Get timeline item property",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "property_key": {
+                            "type": "string",
+                            "description": "Property key (optional - returns all if not specified)"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_timeline_item_property",
+                "Set timeline item property",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "property_key": {
+                            "type": "string",
+                            "description": "Property key"
+                        },
+                        "property_value": {
+                            "description": "Property value"
+                        }
+                    },
+                    "required": ["timeline_item_id", "property_key", "property_value"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_item_details",
+                "Get timeline item details",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "add_timeline_item_marker",
+                "Add marker to timeline item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "frame_id": {
+                            "type": "number",
+                            "description": "Frame ID for the marker"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Marker color",
+                            "default": "Blue"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Marker name",
+                            "default": ""
+                        },
+                        "note": {
+                            "type": "string",
+                            "description": "Marker note",
+                            "default": ""
+                        },
+                        "duration": {
+                            "type": "number",
+                            "description": "Marker duration",
+                            "default": 1.0
+                        },
+                        "custom_data": {
+                            "type": "string",
+                            "description": "Custom data",
+                            "default": ""
+                        }
+                    },
+                    "required": ["timeline_item_id", "frame_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_timeline_item_markers",
+                "Get timeline item markers",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "delete_timeline_item_marker",
+                "Delete timeline item marker",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "frame_num": {
+                            "type": "number",
+                            "description": "Frame number"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Marker color to delete"
+                        },
+                        "custom_data": {
+                            "type": "string",
+                            "description": "Custom data to match"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "timeline_item_flag",
+                "Manage timeline item flags",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Flag color (optional - returns all flags if not specified)"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "timeline_item_color",
+                "Manage timeline item color",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "color_name": {
+                            "type": "string",
+                            "description": "Color name (optional - returns current color if not specified)"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "fusion_comp",
+                "Manage Fusion compositions",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "comp_index": {
+                            "type": "integer",
+                            "description": "Composition index"
+                        },
+                        "comp_name": {
+                            "type": "string",
+                            "description": "Composition name"
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "File path for import/export"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "version",
+                "Manage timeline item versions",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "version_name": {
+                            "type": "string",
+                            "description": "Version name"
+                        },
+                        "version_type": {
+                            "type": "string",
+                            "description": "Version type",
+                            "enum": ["local", "remote"],
+                            "default": "local"
+                        },
+                        "new_version_name": {
+                            "type": "string",
+                            "description": "New version name for rename"
+                        }
+                    },
+                    "required": ["timeline_item_id", "version_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "stereo_params",
+                "Manage stereo parameters",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "params": {
+                            "description": "Stereo parameters"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "node_lut",
+                "Manage node LUT",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "node_index": {
+                            "type": "integer",
+                            "description": "Node index"
+                        },
+                        "lut_path": {
+                            "type": "string",
+                            "description": "LUT file path (optional - returns current LUT if not specified)"
+                        }
+                    },
+                    "required": ["timeline_item_id", "node_index"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "set_cdl",
+                "Set CDL parameters",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "cdl_map": {
+                            "description": "CDL parameters"
+                        }
+                    },
+                    "required": ["timeline_item_id", "cdl_map"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "take",
+                "Manage timeline item takes",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "timeline_item_id": {
+                            "type": "string",
+                            "description": "Timeline item ID"
+                        },
+                        "media_pool_item": {
+                            "type": "string",
+                            "description": "Media pool item for new take"
+                        },
+                        "start_frame": {
+                            "type": "number",
+                            "description": "Start frame"
+                        },
+                        "end_frame": {
+                            "type": "number",
+                            "description": "End frame"
+                        },
+                        "take_index": {
+                            "type": "integer",
+                            "description": "Take index"
+                        }
+                    },
+                    "required": ["timeline_item_id"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "copy_grades",
+                "Copy grades between timeline items",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "source_timeline_item_id": {
+                            "type": "string",
+                            "description": "Source timeline item ID"
+                        },
+                        "target_timeline_item_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Target timeline item IDs"
+                        }
+                    },
+                    "required": ["source_timeline_item_id", "target_timeline_item_ids"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -1306,7 +2614,7 @@ impl Service<RoleServer> for DaVinciResolveServer {
                 name: "davinci-resolve-mcp".into(),
                 version: "2.0.0".into(),
             },
-            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 47 tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, professional timeline item manipulation, render & delivery operations, and audio transcription".to_string()),
+            instructions: Some("DaVinci Resolve MCP Server (Pure Rust) - Automate DaVinci Resolve workflows with 120+ tools including project management, timeline operations, media pool management, timeline enhancement features, comprehensive color grading operations, professional timeline item manipulation, render & delivery operations, audio transcription, cache optimization, layout management, cloud operations, application control, complete Timeline API, and comprehensive TimelineItem API".to_string()),
         }
     }
 }

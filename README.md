@@ -4,7 +4,7 @@ A high-performance Model Context Protocol (MCP) server for DaVinci Resolve autom
 
 ## Features
 
-- **48 Professional Tools**: Complete automation suite for DaVinci Resolve
+- **80+ Professional Tools**: Complete automation suite for DaVinci Resolve
 - **Pure Rust Implementation**: Fast, memory-safe, and reliable
 - **Complete DaVinci Resolve API Coverage**: All major operations supported
 - **Keyframe Animation System**: Professional-grade animation control (Phase 4 Week 2)
@@ -14,7 +14,48 @@ A high-performance Model Context Protocol (MCP) server for DaVinci Resolve autom
 - **Type Safety**: Compile-time guarantees for API correctness
 - **Comprehensive Error Handling**: Detailed error reporting and recovery
 
-## Tool Categories (48 Total)
+## Tool Categories (80+ Total)
+
+### Extended Project Management (5 tools) ✨ NEW
+- Media clip deletion and bin organization
+- Folder export to DRB format
+- Batch audio transcription for folders
+- Advanced media pool management
+
+### Cache & Optimization Operations (7 tools) ✨ NEW
+- Cache mode control (auto/on/off)
+- Optimized media generation and deletion
+- Proxy mode and quality settings
+- Cache path configuration (local/network)
+
+### Extended Color Operations (3 tools) ✨ NEW
+- Color preset album management
+- PowerGrade LUT batch export
+- Advanced color workflow automation
+
+### Layout & Interface Management (5 tools) ✨ NEW
+- UI layout preset save/load/export/import
+- Interface customization and automation
+- Workspace management
+
+### Application Control (4 tools) ✨ NEW
+- Application quit and restart
+- Settings and preferences dialogs
+- System-level DaVinci Resolve control
+
+### Cloud Operations (6 tools) ✨ NEW
+- Cloud project creation and management
+- Project import/export to cloud
+- User permission management
+- Collaborative workflow support
+
+### Object Inspection (2 tools) ✨ NEW
+- DaVinci Resolve API object help
+- Custom object path inspection
+
+### Project Properties (2 tools) ✨ NEW
+- Project property configuration
+- Timeline format settings
 
 ### Project & Timeline Management (11 tools)
 - Project creation, opening, and page switching

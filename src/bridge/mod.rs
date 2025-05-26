@@ -31,7 +31,7 @@ pub struct ResolveBridge {
 }
 
 #[derive(Debug, Default)]
-struct ResolveState {
+pub struct ResolveState {
     /// Current project name
     current_project: Option<String>,
     /// List of available projects
@@ -2656,6 +2656,69 @@ except Exception as e:
             "operation_id": Uuid::new_v4().to_string(),
             "clip_name": clip_name
         }))
+    }
+}
+
+impl ResolveState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn initialize(&mut self) -> ResolveResult<()> {
+        // Initialize connection to DaVinci Resolve
+        self.operation_count += 1;
+        Ok(())
+    }
+
+    pub async fn switch_page(&mut self, page: &str) -> ResolveResult<String> {
+        self.current_page = page.to_string();
+        self.operation_count += 1;
+        Ok(format!("Switched to {} page", page))
+    }
+
+    pub async fn create_empty_timeline(&mut self, args: Value) -> ResolveResult<String> {
+        let name = args["name"].as_str().unwrap_or("New Timeline").to_string();
+        let frame_rate = args["frame_rate"].as_str().map(|s| s.to_string());
+        let resolution_width = args["resolution_width"].as_i64().map(|i| i as i32);
+        let resolution_height = args["resolution_height"].as_i64().map(|i| i as i32);
+
+        let timeline = Timeline {
+            name: name.clone(),
+            frame_rate,
+            resolution_width,
+            resolution_height,
+            markers: Vec::new(),
+        };
+
+        self.timelines.insert(name.clone(), timeline);
+        self.current_timeline = Some(name.clone());
+        self.operation_count += 1;
+
+        Ok(format!("Created timeline: {}", name))
+    }
+
+    pub async fn add_marker(&mut self, args: Value) -> ResolveResult<String> {
+        let frame = args["frame"].as_i64().map(|i| i as i32);
+        let color = args["color"].as_str().unwrap_or("Blue").to_string();
+        let note = args["note"].as_str().unwrap_or("").to_string();
+
+        let marker = Marker { frame, color: color.clone(), note: note.clone() };
+
+        if let Some(timeline_name) = &self.current_timeline {
+            if let Some(timeline) = self.timelines.get_mut(timeline_name) {
+                timeline.markers.push(marker);
+                self.operation_count += 1;
+                return Ok(format!("Added {} marker: {}", color, note));
+            }
+        }
+
+        Err(ResolveError::internal("No current timeline"))
+    }
+
+    pub async fn list_timelines(&mut self) -> ResolveResult<String> {
+        let timeline_names: Vec<String> = self.timelines.keys().cloned().collect();
+        self.operation_count += 1;
+        Ok(format!("Timelines: {:?}", timeline_names))
     }
 }
 

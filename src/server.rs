@@ -1,18 +1,20 @@
-use std::sync::{Arc, RwLock};
-use serde_json::{json, Value};
-use rmcp::{
-    model::{CallToolResult, Content, ServerCapabilities, Implementation,
-           InitializeResult, ProtocolVersion, ListToolsResult, CallToolRequestParam,
-           ClientRequest, ClientNotification, ServerResult, Tool, ErrorData, CallToolRequestMethod},
-    Service,
-    service::{RoleServer, RequestContext},
-};
 use crate::{
-    bridge::{ResolveBridge, ConnectionMode},
+    bridge::{ConnectionMode, ResolveBridge},
     config::Config,
     error::ResolveError,
-    tools::{handle_tool_call},
+    tools::handle_tool_call,
 };
+use rmcp::{
+    model::{
+        CallToolRequestMethod, CallToolRequestParam, CallToolResult, ClientNotification,
+        ClientRequest, Content, ErrorData, Implementation, InitializeResult, ListToolsResult,
+        ProtocolVersion, ServerCapabilities, ServerResult, Tool,
+    },
+    service::{RequestContext, RoleServer},
+    Service,
+};
+use serde_json::{json, Value};
+use std::sync::{Arc, RwLock};
 
 /// Main DaVinci Resolve MCP Server
 #[derive(Debug)]
@@ -68,7 +70,11 @@ impl DaVinciResolveServer {
     }
 
     /// Handle MCP tool calls by routing to the centralized handler
-    pub async fn handle_tool_call(&self, name: &str, arguments: Option<serde_json::Map<String, Value>>) -> Result<String, ResolveError> {
+    pub async fn handle_tool_call(
+        &self,
+        name: &str,
+        arguments: Option<serde_json::Map<String, Value>>,
+    ) -> Result<String, ResolveError> {
         // Convert arguments to Value for the handler
         let args = match arguments {
             Some(args_map) => Value::Object(args_map),
@@ -83,7 +89,6 @@ impl DaVinciResolveServer {
     fn get_tools(&self) -> Vec<Tool> {
         vec![
             // ==================== PHASE 1 & 2 TOOLS ====================
-            
             // Project Management
             Tool::new(
                 "create_project",
@@ -182,7 +187,7 @@ impl DaVinciResolveServer {
                 }).as_object().unwrap().clone()),
             ),
 
-            // Basic Media Operations  
+            // Basic Media Operations
             Tool::new(
                 "import_media",
                 "Import media file into the current project's media pool",
@@ -368,7 +373,7 @@ impl DaVinciResolveServer {
                     "required": ["clip_name", "replacement_path"]
                 }).as_object().unwrap().clone()),
             ),
-            
+
             // Timeline Enhancement Tools (Phase 3 Week 2)
             Tool::new(
                 "delete_timeline",
@@ -510,7 +515,7 @@ impl DaVinciResolveServer {
                             "enum": ["lift", "gamma", "gain", "offset"]
                         },
                         "param": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Which parameter to adjust",
                             "enum": ["red", "green", "blue", "master"]
                         },
@@ -2548,6 +2553,78 @@ impl DaVinciResolveServer {
                     "additionalProperties": false
                 }).as_object().unwrap().clone()),
             ),
+
+            // ==================== MISSING TOOLS (Phase 3 APIs) ====================
+            Tool::new(
+                "get_media_pool_item_name",
+                "Get the name of a media pool item",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "clip_name": {
+                            "type": "string",
+                            "description": "Name of the clip to get name for"
+                        }
+                    },
+                    "required": ["clip_name"],
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_project_timeline_count",
+                "Get the number of timelines in the current project",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_media_pool_root_folder",
+                "Get the root folder of the media pool",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_gallery_still_albums",
+                "Get the list of still albums in the gallery",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_fusion_tool_list",
+                "Get the list of tools in Fusion page",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {
+                        "selected_only": {
+                            "type": "boolean",
+                            "description": "Whether to get only selected tools",
+                            "default": false
+                        },
+                        "tool_type": {
+                            "type": "string",
+                            "description": "Optional tool type filter"
+                        }
+                    },
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
+            Tool::new(
+                "get_audio_track_count",
+                "Get the number of audio tracks in the current timeline",
+                Arc::new(json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }).as_object().unwrap().clone()),
+            ),
         ]
     }
 }
@@ -2566,15 +2643,15 @@ impl Service<RoleServer> for DaVinciResolveServer {
             }
             ClientRequest::ListToolsRequest(_) => {
                 let tools = self.get_tools();
-                Ok(ServerResult::ListToolsResult(ListToolsResult { 
+                Ok(ServerResult::ListToolsResult(ListToolsResult {
                     tools,
-                    next_cursor: None
+                    next_cursor: None,
                 }))
             }
             ClientRequest::CallToolRequest(call_tool_request) => {
                 // Extract the actual parameters from the request
                 let CallToolRequestParam { name, arguments } = call_tool_request.params;
-                
+
                 match self.handle_tool_call(&name, arguments).await {
                     Ok(content) => Ok(ServerResult::CallToolResult(CallToolResult {
                         content: vec![Content::text(content)],
@@ -2623,4 +2700,4 @@ impl Default for DaVinciResolveServer {
     fn default() -> Self {
         Self::new()
     }
-} 
+}

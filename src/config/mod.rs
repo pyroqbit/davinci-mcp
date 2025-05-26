@@ -147,9 +147,12 @@ impl Config {
         // Validate frame rate
         let frame_rate: Result<f64, _> = self.resolve.default_project.frame_rate.parse();
         if frame_rate.is_err() {
-            return Err(format!("Invalid frame rate: {}", self.resolve.default_project.frame_rate));
+            return Err(format!(
+                "Invalid frame rate: {}",
+                self.resolve.default_project.frame_rate
+            ));
         }
 
         Ok(())
     }
-} 
+}

@@ -10,7 +10,7 @@ mod tests {
 
         // Initialize the bridge
         let state = Arc::new(Mutex::new(ResolveState::new()));
-        
+
         println!("\n🔧 Test 1: Initialize connection");
         let result = state.lock().unwrap().initialize().await;
         assert!(result.is_ok(), "Failed to initialize: {:?}", result);
@@ -28,8 +28,12 @@ mod tests {
             "resolution_width": 1920,
             "resolution_height": 1080
         });
-        
-        let result = state.lock().unwrap().create_empty_timeline(timeline_args).await;
+
+        let result = state
+            .lock()
+            .unwrap()
+            .create_empty_timeline(timeline_args)
+            .await;
         assert!(result.is_ok(), "Failed to create timeline: {:?}", result);
         println!("✅ Created timeline: {}", result.unwrap());
 
@@ -39,7 +43,7 @@ mod tests {
             "color": "Blue",
             "note": "Rust Integration Test Marker"
         });
-        
+
         let result = state.lock().unwrap().add_marker(marker_args).await;
         assert!(result.is_ok(), "Failed to add marker: {:?}", result);
         println!("✅ Added marker: {}", result.unwrap());
@@ -51,4 +55,4 @@ mod tests {
 
         println!("\n✅ All integration tests completed!");
     }
-} 
+}

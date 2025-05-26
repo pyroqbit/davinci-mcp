@@ -7,16 +7,16 @@ mod tests {
     fn test_native_davinci_resolve_integration() {
         println!("🧪 Native DaVinci Resolve Integration Test");
         println!("============================================");
-        
+
         // Test native integration
         match test_native_integration() {
             Ok(()) => {
                 println!("✅ Native integration test completed successfully!");
-            },
+            }
             Err(e) => {
                 println!("❌ Native integration test failed: {}", e);
                 panic!("Native integration test failed: {}", e);
             }
         }
     }
-} 
+}

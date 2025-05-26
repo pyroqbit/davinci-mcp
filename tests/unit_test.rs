@@ -2,13 +2,17 @@ use davinci_mcp_rs::error::ResolveError;
 
 #[test]
 fn test_error_types() {
-    let error = ResolveError::ProjectNotFound { name: "Test Project".to_string() };
+    let error = ResolveError::ProjectNotFound {
+        name: "Test Project".to_string(),
+    };
     assert!(matches!(error, ResolveError::ProjectNotFound { .. }));
 }
 
 #[test]
 fn test_error_display() {
-    let error = ResolveError::ProjectNotFound { name: "Test Project".to_string() };
+    let error = ResolveError::ProjectNotFound {
+        name: "Test Project".to_string(),
+    };
     let error_string = format!("{}", error);
     assert!(error_string.contains("Test Project"));
 }
@@ -38,4 +42,4 @@ mod tools_tests {
         // Add tests for tool execution
         assert!(true); // Placeholder
     }
-} 
+}

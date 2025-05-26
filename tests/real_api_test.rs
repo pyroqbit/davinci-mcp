@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use std::process::Command;
     use serde_json::Value;
+    use std::process::Command;
 
     #[tokio::test]
     async fn test_real_davinci_resolve_api() {
@@ -14,7 +14,7 @@ mod tests {
             .args(&["aux"])
             .output()
             .expect("Failed to run ps command");
-        
+
         let ps_string = String::from_utf8_lossy(&ps_output.stdout);
         if !ps_string.contains("/opt/resolve/bin/resolve") {
             panic!("❌ DaVinci Resolve is not running! Start it first.");
@@ -102,10 +102,10 @@ except Exception as e:
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        
+
         println!("📤 Python output:");
         println!("{}", stdout);
-        
+
         if !stderr.is_empty() {
             println!("⚠️ Python errors:");
             println!("{}", stderr);
@@ -113,7 +113,10 @@ except Exception as e:
 
         // Check if the script succeeded
         if !output.status.success() {
-            println!("❌ FAILED: Python script failed with exit code: {}", output.status);
+            println!(
+                "❌ FAILED: Python script failed with exit code: {}",
+                output.status
+            );
             println!("💡 This means we cannot actually connect to DaVinci Resolve");
             panic!("Real API test failed - cannot connect to DaVinci Resolve");
         }
@@ -134,7 +137,7 @@ except Exception as e:
 
         // This test shows how we could call DaVinci Resolve from Rust
         // by executing Python scripts and parsing results
-        
+
         let python_script = r#"
 import sys
 import os
@@ -196,24 +199,37 @@ except Exception as e:
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            
+
             match serde_json::from_str::<Value>(&stdout) {
                 Ok(json_result) => {
-                    if json_result.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    if json_result
+                        .get("success")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                    {
                         println!("✅ Successfully got project info from DaVinci Resolve:");
-                        println!("📁 Project: {}", json_result["project_name"].as_str().unwrap_or("Unknown"));
-                        println!("📊 Timeline count: {}", json_result["timeline_count"].as_i64().unwrap_or(0));
-                        
+                        println!(
+                            "📁 Project: {}",
+                            json_result["project_name"].as_str().unwrap_or("Unknown")
+                        );
+                        println!(
+                            "📊 Timeline count: {}",
+                            json_result["timeline_count"].as_i64().unwrap_or(0)
+                        );
+
                         if let Some(timelines) = json_result["timelines"].as_array() {
                             for timeline in timelines {
-                                println!("🎬 Timeline: {} ({})", 
+                                println!(
+                                    "🎬 Timeline: {} ({})",
                                     timeline["name"].as_str().unwrap_or("Unknown"),
                                     timeline["resolution"].as_str().unwrap_or("Unknown")
                                 );
                             }
                         }
-                        
-                        println!("🎉 Rust successfully communicated with DaVinci Resolve via Python!");
+
+                        println!(
+                            "🎉 Rust successfully communicated with DaVinci Resolve via Python!"
+                        );
                     } else {
                         let error = json_result["error"].as_str().unwrap_or("Unknown error");
                         println!("❌ DaVinci Resolve API error: {}", error);
@@ -232,4 +248,4 @@ except Exception as e:
             panic!("Python script execution failed");
         }
     }
-} 
+}

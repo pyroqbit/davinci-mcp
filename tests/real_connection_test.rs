@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use davinci_mcp_rs::bridge::{ResolveBridge, ConnectionMode};
+    use davinci_mcp_rs::bridge::{ConnectionMode, ResolveBridge};
     use serde_json::json;
 
     #[tokio::test]
@@ -10,22 +10,30 @@ mod tests {
 
         // Initialize the bridge in REAL mode
         let bridge = ResolveBridge::new(ConnectionMode::Real);
-        
+
         println!("\n🔧 Test 1: Initialize real connection to DaVinci Resolve");
         let init_result = bridge.initialize().await;
-        
+
         // ЧЕСТНАЯ ПРОВЕРКА - если DaVinci Resolve не запущен, тест должен ПРОВАЛИТЬСЯ
         match init_result {
             Ok(()) => {
                 println!("✅ Successfully connected to DaVinci Resolve");
-                assert!(bridge.is_connected().await, "Connection should be established");
+                assert!(
+                    bridge.is_connected().await,
+                    "Connection should be established"
+                );
                 println!("✅ Connection verified - DaVinci Resolve is accessible");
             }
             Err(e) => {
                 println!("❌ FAILED: Cannot connect to DaVinci Resolve: {}", e);
-                println!("💡 Make sure DaVinci Resolve is running and external scripting is enabled");
+                println!(
+                    "💡 Make sure DaVinci Resolve is running and external scripting is enabled"
+                );
                 println!("💡 This test requires a REAL DaVinci Resolve instance");
-                panic!("Real connection test failed - DaVinci Resolve not available: {}", e);
+                panic!(
+                    "Real connection test failed - DaVinci Resolve not available: {}",
+                    e
+                );
             }
         }
 
@@ -49,8 +57,10 @@ mod tests {
             "resolution_width": 1920,
             "resolution_height": 1080
         });
-        
-        let result = bridge.call_api("create_empty_timeline", timeline_args).await;
+
+        let result = bridge
+            .call_api("create_empty_timeline", timeline_args)
+            .await;
         match result {
             Ok(response) => {
                 println!("✅ Created timeline: {}", response);
@@ -67,7 +77,7 @@ mod tests {
             "color": "Green",
             "note": "Rust Real Integration Test Marker - Success!"
         });
-        
+
         let result = bridge.call_api("add_marker", marker_args).await;
         match result {
             Ok(response) => {
@@ -122,4 +132,4 @@ mod tests {
         println!("🎉 Your Rust MCP server successfully connected to DaVinci Resolve!");
         println!("🔥 ALL TESTS PASSED - Native Rust integration working!");
     }
-} 
+}

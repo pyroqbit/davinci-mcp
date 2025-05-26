@@ -71,10 +71,10 @@ except Exception as e:
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        
+
         println!("📤 Python output:");
         println!("{}", stdout);
-        
+
         if !stderr.is_empty() {
             println!("⚠️ Python errors:");
             println!("{}", stderr);
@@ -82,14 +82,14 @@ except Exception as e:
 
         // Тест 2: Проверяем возможность создания Python embedding
         println!("\n🦀 Test 2: Rust Python embedding possibilities");
-        
+
         // Check if we have pyo3 or similar crates available
         println!("💡 For native integration we would need:");
         println!("   1. pyo3 crate for Python C API bindings");
         println!("   2. Embedded Python interpreter in Rust");
         println!("   3. Direct access to fusionscript module");
         println!("   4. Object marshalling between Rust and Python");
-        
+
         println!("\n🔧 Current approach comparison:");
         println!("   📊 Python subprocess: ✅ Working, ❌ Slower");
         println!("   🚀 Native embedding: ❓ Complex, ✅ Faster");
@@ -102,11 +102,14 @@ except Exception as e:
         println!("{}", "=".repeat(60));
 
         let iterations = 5;
-        
+
         // Test subprocess approach
-        println!("\n🐍 Testing subprocess approach ({} iterations)", iterations);
+        println!(
+            "\n🐍 Testing subprocess approach ({} iterations)",
+            iterations
+        );
         let start = std::time::Instant::now();
-        
+
         for i in 1..=iterations {
             let python_script = r#"
 import sys
@@ -132,29 +135,32 @@ except Exception as e:
                 .arg(python_script)
                 .output()
                 .expect("Failed to execute Python script");
-            
+
             let stdout = String::from_utf8_lossy(&output.stdout);
             println!("  Iteration {}: {}", i, stdout.trim());
         }
-        
+
         let subprocess_duration = start.elapsed();
         println!("📊 Subprocess total time: {:?}", subprocess_duration);
-        println!("📊 Average per call: {:?}", subprocess_duration / iterations);
-        
+        println!(
+            "📊 Average per call: {:?}",
+            subprocess_duration / iterations
+        );
+
         // Simulate native approach timing
         println!("\n🚀 Simulated native approach timing");
         let start = std::time::Instant::now();
-        
+
         for i in 1..=iterations {
             // Simulate native call overhead (much faster)
             std::thread::sleep(std::time::Duration::from_millis(1));
             println!("  Iteration {}: NATIVE_SUCCESS", i);
         }
-        
+
         let native_duration = start.elapsed();
         println!("📊 Native total time: {:?}", native_duration);
         println!("📊 Average per call: {:?}", native_duration / iterations);
-        
+
         let speedup = subprocess_duration.as_millis() as f64 / native_duration.as_millis() as f64;
         println!("🚀 Potential speedup: {:.1}x faster", speedup);
     }
@@ -201,4 +207,4 @@ except Exception as e:
         println!("   4. 🔄 Connection pooling");
         println!("   5. ⚡ Async batching of operations");
     }
-} 
+}

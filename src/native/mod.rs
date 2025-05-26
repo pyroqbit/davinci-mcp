@@ -1,6 +1,6 @@
+use anyhow::{anyhow, Result};
 use libloading::{Library, Symbol};
-use anyhow::{Result, anyhow};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 /// Native DaVinci Resolve FFI integration
 pub struct NativeDaVinciResolve {
@@ -61,17 +61,18 @@ impl NativeDaVinciResolve {
     /// Load Fusion script library
     fn load_fusion_library(&mut self) -> Result<()> {
         let fusion_path = "/opt/resolve/libs/Fusion/fusionscript.so";
-        
+
         debug!("Loading Fusion library from: {}", fusion_path);
-        
+
         unsafe {
             let lib = Library::new(fusion_path)
                 .map_err(|e| anyhow!("Failed to load fusionscript.so: {}", e))?;
-            
+
             // Verify Python C Extension entry point exists
-            let _: Symbol<unsafe extern "C" fn() -> *mut std::ffi::c_void> = lib.get(b"PyInit_fusionscript\0")
+            let _: Symbol<unsafe extern "C" fn() -> *mut std::ffi::c_void> = lib
+                .get(b"PyInit_fusionscript\0")
                 .map_err(|e| anyhow!("Missing PyInit_fusionscript function: {}", e))?;
-            
+
             self.fusion_lib = Some(lib);
             Ok(())
         }
@@ -80,13 +81,13 @@ impl NativeDaVinciResolve {
     /// Load COM API library
     fn load_com_api_library(&mut self) -> Result<()> {
         let com_api_path = "/opt/resolve/libs/libcom-api.so";
-        
+
         debug!("Loading COM API library from: {}", com_api_path);
-        
+
         unsafe {
             let lib = Library::new(com_api_path)
                 .map_err(|e| anyhow!("Failed to load libcom-api.so: {}", e))?;
-            
+
             self.com_api_lib = Some(lib);
             Ok(())
         }
@@ -113,13 +114,13 @@ impl NativeDaVinciResolve {
         // 2. Load fusionscript module
         // 3. Call scriptapp("Resolve") function
         // 4. Manage Python objects from Rust
-        
+
         // This is a complex task that requires Python C API integration
         // For now, we'll mark as connected if the library loaded successfully
         self.is_connected = true;
         info!("✅ Successfully connected to DaVinci Resolve natively!");
         info!("💡 Using simulated connection - full Python C API integration needed for real connection");
-        
+
         Ok(())
     }
 
@@ -134,7 +135,7 @@ impl NativeDaVinciResolve {
         // For now, simulate command execution
         // In a real implementation, this would call the native API
         let result = format!("Native execution result for: {}", command);
-        
+
         debug!("📤 Native command result: {}", result);
         Ok(result)
     }
@@ -183,7 +184,7 @@ impl NativeDaVinciResolve {
         let command = format!("project.GetMediaPool().CreateEmptyTimeline('{}')", name);
         let _result = self.execute_command(&command)?;
         info!("📁 Created timeline: {}", name);
-        
+
         // Generate a mock timeline ID for now
         let timeline_id = format!("timeline_{}", uuid::Uuid::new_v4());
         Ok(timeline_id)
@@ -195,7 +196,10 @@ impl NativeDaVinciResolve {
             return Err(anyhow!("Not connected to DaVinci Resolve"));
         }
 
-        let command = format!("timeline.AddMarker({}, '{}', '{}', '{}', 1)", frame, color, note, note);
+        let command = format!(
+            "timeline.AddMarker({}, '{}', '{}', '{}', 1)",
+            frame, color, note, note
+        );
         self.execute_command(&command)?;
         info!("🎯 Added {} marker at frame {}: {}", color, frame, note);
         Ok(())
@@ -209,7 +213,7 @@ impl NativeDaVinciResolve {
 
         let command = "project.GetTimelineCount()";
         let _result = self.execute_command(command)?;
-        
+
         // For now, return mock timeline data
         let timelines = vec![
             serde_json::json!({
@@ -218,12 +222,12 @@ impl NativeDaVinciResolve {
                 "resolution": "1920x1080"
             }),
             serde_json::json!({
-                "name": "Timeline 2", 
+                "name": "Timeline 2",
                 "frame_rate": "30",
                 "resolution": "1920x1080"
-            })
+            }),
         ];
-        
+
         info!("📋 Listed {} timelines", timelines.len());
         Ok(timelines)
     }
@@ -241,23 +245,23 @@ impl Drop for NativeDaVinciResolve {
 /// Test native integration
 pub fn test_native_integration() -> Result<()> {
     info!("🧪 Testing native DaVinci Resolve integration...");
-    
+
     let mut native = NativeDaVinciResolve::new();
-    
+
     // Initialize
     native.initialize()?;
-    
+
     // Test connection
     match native.connect() {
         Ok(()) => {
             info!("✅ Native integration test successful!");
             info!("📊 Connection info: {}", native.get_connection_info());
-        },
+        }
         Err(e) => {
             warn!("⚠️ Native connection failed: {}", e);
             info!("💡 This is expected if DaVinci Resolve is not running");
         }
     }
-    
+
     Ok(())
-} 
+}

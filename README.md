@@ -256,7 +256,18 @@ cargo audit
 
 ## License
 
-MIT License - see LICENSE file for details.
+**Non-Commercial License** - Free for non-commercial use only.
+
+This software is licensed under a custom non-commercial license that permits:
+- ✅ Personal use
+- ✅ Educational use  
+- ✅ Research projects
+- ✅ Open-source development
+- ❌ Commercial use (requires separate commercial license)
+
+See the [LICENSE](LICENSE) file for complete terms and conditions.
+
+For commercial licensing inquiries, please contact the project maintainers.
 
 ## Architecture
 

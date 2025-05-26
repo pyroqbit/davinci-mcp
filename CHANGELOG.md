@@ -10,6 +10,7 @@ All notable changes to the DaVinci Resolve MCP Server (Rust) project will be doc
 - **28 New API Methods**: Complete Phase 3 API implementation
 - **Enhanced Bridge**: Improved simulation mode with proper state management
 - **Code Quality**: Full formatting, linting, and production-ready code
+- **📄 License Update**: Changed to Non-Commercial License (free for non-commercial use)
 
 ### ✅ Fixed Issues
 
@@ -76,6 +77,14 @@ All notable changes to the DaVinci Resolve MCP Server (Rust) project will be doc
 - **Code Formatting**: Consistent code style with rustfmt
 - **Linting**: Clean code with clippy recommendations
 - **Documentation**: Updated README and comprehensive changelog
+
+### 📄 License Changes
+
+- **New License**: Changed from MIT to Custom Non-Commercial License
+- **Non-Commercial Use**: Free for personal, educational, research, and open-source projects
+- **Commercial Licensing**: Separate commercial license required for business use
+- **Clear Terms**: Detailed definitions of commercial vs non-commercial use
+- **Contact Information**: Clear path for commercial licensing inquiries
 
 ### 🎯 Next Steps
 

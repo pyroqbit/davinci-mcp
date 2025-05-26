@@ -2,7 +2,7 @@
 
 A high-performance Model Context Protocol (MCP) server for DaVinci Resolve automation, written in Rust.
 
-## 🎉 Latest Updates (December 2024)
+## 🎉 Latest Updates (May 2025)
 
 - **✅ All Tests Passing**: 100% test coverage with 43 comprehensive tests
 - **🚀 120+ Professional Tools**: Complete automation suite for DaVinci Resolve

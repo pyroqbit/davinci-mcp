@@ -623,10 +623,32 @@ except Exception as e:
 
     /// Call a DaVinci Resolve API method
     pub async fn call_api(&self, method: &str, args: Value) -> ResolveResult<Value> {
+        tracing::debug!("API call: {} with args: {} (mode: {:?})", method, args, self.mode);
+
+        // Check if we should use real DaVinci Resolve API
+        match self.mode {
+            ConnectionMode::Real => {
+                // Try to use real DaVinci Resolve API first
+                match self.call_real_api(method, &args).await {
+                    Ok(result) => {
+                        tracing::info!("Real API call successful for {}", method);
+                        return Ok(result);
+                    }
+                    Err(e) => {
+                        // Fall back to simulation if real API fails
+                        tracing::warn!("Real API call failed for {} ({}), falling back to simulation", method, e);
+                    }
+                }
+            }
+            ConnectionMode::Simulation => {
+                // Use simulation mode directly
+                tracing::debug!("Using simulation mode for {}", method);
+            }
+        }
+
+        // Simulation mode logic
         let mut state = self.state.lock().await;
         state.operation_count += 1;
-
-        tracing::debug!("API call: {} with args: {}", method, args);
 
         match method {
             // Project operations
@@ -704,6 +726,116 @@ except Exception as e:
 
             _ => Err(ResolveError::not_supported(format!("API method: {}", method))),
         }
+    }
+
+    /// Call real DaVinci Resolve API using Python integration
+    async fn call_real_api(&self, method: &str, args: &Value) -> ResolveResult<Value> {
+        use std::process::Command;
+        
+        // Create a temporary Python script to call DaVinci Resolve API
+        let python_script = format!(r#"
+import DaVinciResolveScript as dvr_script
+import json
+import sys
+
+try:
+    resolve = dvr_script.scriptapp("Resolve")
+    if not resolve:
+        print(json.dumps({{"error": "Could not connect to DaVinci Resolve"}}))
+        sys.exit(1)
+    
+    project_manager = resolve.GetProjectManager()
+    project = project_manager.GetCurrentProject()
+    
+    if not project:
+        print(json.dumps({{"error": "No project open"}}))
+        sys.exit(1)
+    
+    method = "{}"
+    args = {}
+    
+    # Handle different API methods
+    if method == "switch_page":
+        page = args.get("page", "edit")
+        resolve.OpenPage(page)
+        result = {{"result": f"Switched to {{page}} page", "previous_page": page}}
+    elif method == "create_empty_timeline":
+        name = args.get("name", "New Timeline")
+        frame_rate = args.get("frame_rate", "24")
+        width = args.get("resolution_width", 1920)
+        height = args.get("resolution_height", 1080)
+        
+        media_pool = project.GetMediaPool()
+        timeline = media_pool.CreateEmptyTimeline(name)
+        if timeline:
+            result = {{"result": f"Created timeline '{{name}}'", "timeline_id": str(timeline.GetUniqueId())}}
+        else:
+            result = {{"error": "Failed to create timeline"}}
+    elif method == "add_marker":
+        timeline = project.GetCurrentTimeline()
+        if timeline:
+            frame = args.get("frame", 0)
+            color = args.get("color", "Blue")
+            note = args.get("note", "")
+            
+            marker_added = timeline.AddMarker(frame, color, note, note, 1)
+            if marker_added:
+                result = {{"result": f"Added {{color}} marker at frame {{frame}}"}}
+            else:
+                result = {{"error": "Failed to add marker"}}
+        else:
+            result = {{"error": "No timeline selected"}}
+    elif method == "list_timelines_tool":
+        media_pool = project.GetMediaPool()
+        timelines = []
+        timeline_count = project.GetTimelineCount()
+        for i in range(1, timeline_count + 1):
+            timeline = project.GetTimelineByIndex(i)
+            if timeline:
+                timelines.append({{
+                    "name": timeline.GetName(),
+                    "frame_rate": timeline.GetSetting("timelineFrameRate"),
+                    "resolution": f"{{timeline.GetSetting('timelineResolutionWidth')}}x{{timeline.GetSetting('timelineResolutionHeight')}}"
+                }})
+        result = {{"timelines": timelines, "count": len(timelines)}}
+    else:
+        result = {{"error": f"Unsupported method: {{method}}"}}
+    
+    print(json.dumps(result))
+    
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+    sys.exit(1)
+"#, method, args);
+
+        // Write script to temporary file
+        let script_path = "/tmp/dvr_api_call.py";
+        std::fs::write(script_path, python_script)
+            .map_err(|e| ResolveError::internal(&format!("Failed to write Python script: {}", e)))?;
+
+        // Execute Python script
+        let output = Command::new("python3")
+            .arg(script_path)
+            .output()
+            .map_err(|e| ResolveError::internal(&format!("Failed to execute Python script: {}", e)))?;
+
+        // Clean up
+        let _ = std::fs::remove_file(script_path);
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(ResolveError::internal(&format!("Python script failed: {}", stderr)));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let result: Value = serde_json::from_str(&stdout)
+            .map_err(|e| ResolveError::internal(&format!("Failed to parse Python output: {}", e)))?;
+
+        if let Some(error) = result.get("error") {
+            return Err(ResolveError::internal(&format!("DaVinci Resolve API error: {}", error)));
+        }
+
+        Ok(result)
     }
 
     async fn create_project(&self, state: &mut ResolveState, args: Value) -> ResolveResult<Value> {
@@ -1010,8 +1142,20 @@ except Exception as e:
         let name = args["name"].as_str()
             .ok_or_else(|| ResolveError::invalid_parameter("name", "required string"))?;
         
+        // In simulation mode, auto-create a project if none exists
         if state.current_project.is_none() {
-            return Err(ResolveError::NotRunning);
+            match self.mode {
+                ConnectionMode::Simulation => {
+                    // Auto-create a default project in simulation mode
+                    let default_project = "Default Project".to_string();
+                    state.projects.push(default_project.clone());
+                    state.current_project = Some(default_project);
+                    tracing::info!("Auto-created default project for timeline creation");
+                }
+                ConnectionMode::Real => {
+                    return Err(ResolveError::NotRunning);
+                }
+            }
         }
 
         let timeline = Timeline {

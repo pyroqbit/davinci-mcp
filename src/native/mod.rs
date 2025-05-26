@@ -23,7 +23,9 @@ impl std::fmt::Debug for NativeDaVinciResolve {
 
 /// FFI function signatures for DaVinci Resolve
 type ResolveConnectFn = unsafe extern "C" fn(*const c_char, c_int, *const c_char, *const c_char) -> *mut c_void;
+#[allow(dead_code)]
 type ResolveDisconnectFn = unsafe extern "C" fn(*mut c_void) -> c_int;
+#[allow(dead_code)]
 type ResolveExecuteFn = unsafe extern "C" fn(*mut c_void, *const c_char) -> *const c_char;
 
 impl NativeDaVinciResolve {

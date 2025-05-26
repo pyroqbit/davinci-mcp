@@ -55,8 +55,10 @@ struct ResolveState {
     /// Render and delivery state (Phase 4 Week 3)
     render_state: RenderState,
     /// Response cache for performance optimization
+    #[allow(dead_code)]
     response_cache: HashMap<String, (chrono::DateTime<chrono::Utc>, Value)>,
     /// Cache expiry time in seconds
+    #[allow(dead_code)]
     cache_ttl_seconds: i64,
 }
 
